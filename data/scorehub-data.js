@@ -1,0 +1,113 @@
+const leagues = [
+  { id: 'premier-league', name: 'Premier League', country: 'England', season: '2025-26' },
+  { id: 'la-liga', name: 'La Liga', country: 'Spain', season: '2025-26' },
+  { id: 'serie-a', name: 'Serie A', country: 'Italy', season: '2025-26' },
+  { id: 'bundesliga', name: 'Bundesliga', country: 'Germany', season: '2025-26' },
+  { id: 'ligue-1', name: 'Ligue 1', country: 'France', season: '2025-26' },
+  { id: 'champions-league', name: 'Champions League', country: 'Europe', season: '2025-26' }
+];
+
+const teams = [
+  { id: 'liverpool', name: 'Liverpool', short_name: 'LIV', league: 'premier-league', played: 28, wins: 19, draws: 6, losses: 3, goals_for: 61, goals_against: 24, points: 63 },
+  { id: 'arsenal', name: 'Arsenal', short_name: 'ARS', league: 'premier-league', played: 28, wins: 18, draws: 7, losses: 3, goals_for: 58, goals_against: 23, points: 61 },
+  { id: 'man-city', name: 'Manchester City', short_name: 'MCI', league: 'premier-league', played: 28, wins: 17, draws: 6, losses: 5, goals_for: 62, goals_against: 31, points: 57 },
+  { id: 'chelsea', name: 'Chelsea', short_name: 'CHE', league: 'premier-league', played: 28, wins: 15, draws: 8, losses: 5, goals_for: 52, goals_against: 33, points: 53 },
+  { id: 'newcastle', name: 'Newcastle United', short_name: 'NEW', league: 'premier-league', played: 28, wins: 14, draws: 6, losses: 8, goals_for: 46, goals_against: 36, points: 48 },
+  { id: 'aston-villa', name: 'Aston Villa', short_name: 'AVL', league: 'premier-league', played: 28, wins: 13, draws: 7, losses: 8, goals_for: 49, goals_against: 41, points: 46 },
+  { id: 'brighton', name: 'Brighton', short_name: 'BHA', league: 'premier-league', played: 28, wins: 11, draws: 8, losses: 9, goals_for: 43, goals_against: 40, points: 41 },
+  { id: 'tottenham', name: 'Tottenham Hotspur', short_name: 'TOT', league: 'premier-league', played: 28, wins: 10, draws: 5, losses: 13, goals_for: 47, goals_against: 46, points: 35 },
+
+  { id: 'barcelona', name: 'Barcelona', short_name: 'BAR', league: 'la-liga', played: 27, wins: 19, draws: 5, losses: 3, goals_for: 59, goals_against: 21, points: 62 },
+  { id: 'real-madrid', name: 'Real Madrid', short_name: 'RMA', league: 'la-liga', played: 27, wins: 18, draws: 6, losses: 3, goals_for: 57, goals_against: 24, points: 60 },
+  { id: 'atletico', name: 'Atletico Madrid', short_name: 'ATM', league: 'la-liga', played: 27, wins: 16, draws: 7, losses: 4, goals_for: 46, goals_against: 20, points: 55 },
+  { id: 'athletic', name: 'Athletic Club', short_name: 'ATH', league: 'la-liga', played: 27, wins: 14, draws: 8, losses: 5, goals_for: 41, goals_against: 25, points: 50 },
+  { id: 'real-sociedad', name: 'Real Sociedad', short_name: 'RSO', league: 'la-liga', played: 27, wins: 13, draws: 7, losses: 7, goals_for: 38, goals_against: 29, points: 46 },
+  { id: 'villarreal', name: 'Villarreal', short_name: 'VIL', league: 'la-liga', played: 27, wins: 12, draws: 7, losses: 8, goals_for: 45, goals_against: 36, points: 43 },
+  { id: 'sevilla', name: 'Sevilla', short_name: 'SEV', league: 'la-liga', played: 27, wins: 9, draws: 8, losses: 10, goals_for: 32, goals_against: 35, points: 35 },
+  { id: 'valencia', name: 'Valencia', short_name: 'VAL', league: 'la-liga', played: 27, wins: 8, draws: 7, losses: 12, goals_for: 30, goals_against: 39, points: 31 },
+
+  { id: 'inter', name: 'Inter Milan', short_name: 'INT', league: 'serie-a', played: 28, wins: 20, draws: 5, losses: 3, goals_for: 60, goals_against: 19, points: 65 },
+  { id: 'napoli', name: 'Napoli', short_name: 'NAP', league: 'serie-a', played: 28, wins: 18, draws: 6, losses: 4, goals_for: 55, goals_against: 24, points: 60 },
+  { id: 'juventus', name: 'Juventus', short_name: 'JUV', league: 'serie-a', played: 28, wins: 16, draws: 8, losses: 4, goals_for: 47, goals_against: 23, points: 56 },
+  { id: 'ac-milan', name: 'AC Milan', short_name: 'MIL', league: 'serie-a', played: 28, wins: 15, draws: 7, losses: 6, goals_for: 49, goals_against: 29, points: 52 },
+  { id: 'atalanta', name: 'Atalanta', short_name: 'ATA', league: 'serie-a', played: 28, wins: 14, draws: 6, losses: 8, goals_for: 51, goals_against: 35, points: 48 },
+  { id: 'roma', name: 'Roma', short_name: 'ROM', league: 'serie-a', played: 28, wins: 13, draws: 7, losses: 8, goals_for: 42, goals_against: 31, points: 46 },
+  { id: 'lazio', name: 'Lazio', short_name: 'LAZ', league: 'serie-a', played: 28, wins: 12, draws: 7, losses: 9, goals_for: 39, goals_against: 32, points: 43 },
+  { id: 'fiorentina', name: 'Fiorentina', short_name: 'FIO', league: 'serie-a', played: 28, wins: 11, draws: 6, losses: 11, goals_for: 35, goals_against: 36, points: 39 },
+
+  { id: 'bayern', name: 'Bayern Munich', short_name: 'BAY', league: 'bundesliga', played: 25, wins: 18, draws: 4, losses: 3, goals_for: 67, goals_against: 24, points: 58 },
+  { id: 'leverkusen', name: 'Bayer Leverkusen', short_name: 'B04', league: 'bundesliga', played: 25, wins: 17, draws: 5, losses: 3, goals_for: 55, goals_against: 22, points: 56 },
+  { id: 'dortmund', name: 'Borussia Dortmund', short_name: 'BVB', league: 'bundesliga', played: 25, wins: 15, draws: 5, losses: 5, goals_for: 50, goals_against: 31, points: 50 },
+  { id: 'leipzig', name: 'RB Leipzig', short_name: 'RBL', league: 'bundesliga', played: 25, wins: 14, draws: 6, losses: 5, goals_for: 48, goals_against: 29, points: 48 },
+  { id: 'stuttgart', name: 'Stuttgart', short_name: 'VFB', league: 'bundesliga', played: 25, wins: 12, draws: 6, losses: 7, goals_for: 44, goals_against: 32, points: 42 },
+  { id: 'freiburg', name: 'Freiburg', short_name: 'SCF', league: 'bundesliga', played: 25, wins: 11, draws: 4, losses: 10, goals_for: 34, goals_against: 37, points: 37 },
+  { id: 'mainz', name: 'Mainz 05', short_name: 'M05', league: 'bundesliga', played: 25, wins: 6, draws: 7, losses: 12, goals_for: 29, goals_against: 41, points: 25 },
+  { id: 'wolfsburg', name: 'Wolfsburg', short_name: 'WOB', league: 'bundesliga', played: 25, wins: 5, draws: 6, losses: 14, goals_for: 27, goals_against: 45, points: 21 },
+
+  { id: 'psg', name: 'Paris Saint-Germain', short_name: 'PSG', league: 'ligue-1', played: 26, wins: 20, draws: 4, losses: 2, goals_for: 64, goals_against: 20, points: 64 },
+  { id: 'marseille', name: 'Marseille', short_name: 'OM', league: 'ligue-1', played: 26, wins: 15, draws: 6, losses: 5, goals_for: 45, goals_against: 27, points: 51 },
+  { id: 'monaco', name: 'Monaco', short_name: 'ASM', league: 'ligue-1', played: 26, wins: 14, draws: 6, losses: 6, goals_for: 51, goals_against: 33, points: 48 },
+  { id: 'lille', name: 'Lille', short_name: 'LIL', league: 'ligue-1', played: 26, wins: 13, draws: 7, losses: 6, goals_for: 38, goals_against: 24, points: 46 },
+  { id: 'lyon', name: 'Lyon', short_name: 'OL', league: 'ligue-1', played: 26, wins: 12, draws: 6, losses: 8, goals_for: 42, goals_against: 34, points: 42 },
+  { id: 'nice', name: 'Nice', short_name: 'NIC', league: 'ligue-1', played: 26, wins: 11, draws: 8, losses: 7, goals_for: 33, goals_against: 28, points: 41 },
+  { id: 'lens', name: 'Lens', short_name: 'RCL', league: 'ligue-1', played: 26, wins: 9, draws: 7, losses: 10, goals_for: 31, goals_against: 33, points: 34 },
+  { id: 'rennes', name: 'Rennes', short_name: 'REN', league: 'ligue-1', played: 26, wins: 8, draws: 7, losses: 11, goals_for: 29, goals_against: 36, points: 31 },
+
+  { id: 'cl-liverpool', name: 'Liverpool', short_name: 'LIV', league: 'champions-league', played: 8, wins: 6, draws: 1, losses: 1, goals_for: 17, goals_against: 7, points: 19 },
+  { id: 'cl-real-madrid', name: 'Real Madrid', short_name: 'RMA', league: 'champions-league', played: 8, wins: 6, draws: 1, losses: 1, goals_for: 16, goals_against: 8, points: 19 },
+  { id: 'cl-bayern', name: 'Bayern Munich', short_name: 'BAY', league: 'champions-league', played: 8, wins: 5, draws: 2, losses: 1, goals_for: 18, goals_against: 9, points: 17 },
+  { id: 'cl-inter', name: 'Inter Milan', short_name: 'INT', league: 'champions-league', played: 8, wins: 5, draws: 1, losses: 2, goals_for: 15, goals_against: 8, points: 16 },
+  { id: 'cl-psg', name: 'Paris Saint-Germain', short_name: 'PSG', league: 'champions-league', played: 8, wins: 4, draws: 3, losses: 1, goals_for: 14, goals_against: 8, points: 15 },
+  { id: 'cl-barcelona', name: 'Barcelona', short_name: 'BAR', league: 'champions-league', played: 8, wins: 4, draws: 2, losses: 2, goals_for: 14, goals_against: 10, points: 14 },
+  { id: 'cl-arsenal', name: 'Arsenal', short_name: 'ARS', league: 'champions-league', played: 8, wins: 4, draws: 2, losses: 2, goals_for: 13, goals_against: 9, points: 14 },
+  { id: 'cl-atletico', name: 'Atletico Madrid', short_name: 'ATM', league: 'champions-league', played: 8, wins: 4, draws: 1, losses: 3, goals_for: 12, goals_against: 9, points: 13 },
+  { id: 'cl-man-city', name: 'Manchester City', short_name: 'MCI', league: 'champions-league', played: 8, wins: 3, draws: 3, losses: 2, goals_for: 15, goals_against: 12, points: 12 },
+  { id: 'cl-leverkusen', name: 'Bayer Leverkusen', short_name: 'B04', league: 'champions-league', played: 8, wins: 3, draws: 3, losses: 2, goals_for: 11, goals_against: 9, points: 12 },
+  { id: 'cl-dortmund', name: 'Borussia Dortmund', short_name: 'BVB', league: 'champions-league', played: 8, wins: 3, draws: 2, losses: 3, goals_for: 12, goals_against: 12, points: 11 },
+  { id: 'cl-juventus', name: 'Juventus', short_name: 'JUV', league: 'champions-league', played: 8, wins: 3, draws: 2, losses: 3, goals_for: 10, goals_against: 10, points: 11 },
+  { id: 'cl-milan', name: 'AC Milan', short_name: 'MIL', league: 'champions-league', played: 8, wins: 3, draws: 1, losses: 4, goals_for: 11, goals_against: 12, points: 10 },
+  { id: 'cl-napoli', name: 'Napoli', short_name: 'NAP', league: 'champions-league', played: 8, wins: 2, draws: 3, losses: 3, goals_for: 9, goals_against: 11, points: 9 },
+  { id: 'cl-monaco', name: 'Monaco', short_name: 'ASM', league: 'champions-league', played: 8, wins: 2, draws: 2, losses: 4, goals_for: 10, goals_against: 14, points: 8 },
+  { id: 'cl-lille', name: 'Lille', short_name: 'LIL', league: 'champions-league', played: 8, wins: 2, draws: 1, losses: 5, goals_for: 7, goals_against: 13, points: 7 }
+];
+
+const matches = [
+  { id: 'm1', home_team: 'Liverpool', away_team: 'Arsenal', home_score: 2, away_score: 1, league: 'premier-league', match_date: '2026-03-10T19:45:00.000Z', status: 'live', minute: 67, venue: 'Anfield', home_possession: 54, away_possession: 46, home_shots: 14, away_shots: 9, home_shots_on_target: 6, away_shots_on_target: 4, home_corners: 7, away_corners: 3, home_fouls: 8, away_fouls: 11, home_yellow_cards: 1, away_yellow_cards: 2, home_red_cards: 0, away_red_cards: 0, home_scorers: ['Salah 18\'', 'Nunez 61\''], away_scorers: ['Saka 44\''] },
+  { id: 'm2', home_team: 'Barcelona', away_team: 'Real Madrid', home_score: 1, away_score: 1, league: 'la-liga', match_date: '2026-03-10T20:00:00.000Z', status: 'halftime', minute: 45, venue: 'Estadi Olimpic', home_possession: 57, away_possession: 43, home_shots: 8, away_shots: 6, home_shots_on_target: 3, away_shots_on_target: 2, home_corners: 4, away_corners: 2, home_fouls: 6, away_fouls: 7, home_yellow_cards: 1, away_yellow_cards: 1, home_red_cards: 0, away_red_cards: 0, home_scorers: ['Lewandowski 11\''], away_scorers: ['Mbappe 32\''] },
+  { id: 'm3', home_team: 'Inter Milan', away_team: 'Juventus', home_score: 3, away_score: 2, league: 'serie-a', match_date: '2026-03-10T19:30:00.000Z', status: 'live', minute: 79, venue: 'San Siro', home_possession: 49, away_possession: 51, home_shots: 16, away_shots: 13, home_shots_on_target: 7, away_shots_on_target: 5, home_corners: 5, away_corners: 6, home_fouls: 13, away_fouls: 10, home_yellow_cards: 3, away_yellow_cards: 2, home_red_cards: 0, away_red_cards: 0, home_scorers: ['Martinez 9\'', 'Thuram 54\'', 'Calhanoglu 72\''], away_scorers: ['Vlahovic 24\'', 'Chiesa 68\''] },
+  { id: 'm4', home_team: 'Bayern Munich', away_team: 'Borussia Dortmund', home_score: 0, away_score: 0, league: 'bundesliga', match_date: '2026-03-11T19:30:00.000Z', status: 'scheduled', minute: null, venue: 'Allianz Arena', home_possession: null, away_possession: null, home_shots: null, away_shots: null, home_shots_on_target: null, away_shots_on_target: null, home_corners: null, away_corners: null, home_fouls: null, away_fouls: null, home_yellow_cards: null, away_yellow_cards: null, home_red_cards: null, away_red_cards: null, home_scorers: [], away_scorers: [] },
+  { id: 'm5', home_team: 'Paris Saint-Germain', away_team: 'Monaco', home_score: 0, away_score: 0, league: 'ligue-1', match_date: '2026-03-11T20:00:00.000Z', status: 'scheduled', minute: null, venue: 'Parc des Princes', home_possession: null, away_possession: null, home_shots: null, away_shots: null, home_shots_on_target: null, away_shots_on_target: null, home_corners: null, away_corners: null, home_fouls: null, away_fouls: null, home_yellow_cards: null, away_yellow_cards: null, home_red_cards: null, away_red_cards: null, home_scorers: [], away_scorers: [] },
+  { id: 'm6', home_team: 'Manchester City', away_team: 'Bayer Leverkusen', home_score: 2, away_score: 2, league: 'champions-league', match_date: '2026-03-11T20:00:00.000Z', status: 'scheduled', minute: null, venue: 'Etihad Stadium', home_possession: null, away_possession: null, home_shots: null, away_shots: null, home_shots_on_target: null, away_shots_on_target: null, home_corners: null, away_corners: null, home_fouls: null, away_fouls: null, home_yellow_cards: null, away_yellow_cards: null, home_red_cards: null, away_red_cards: null, home_scorers: [], away_scorers: [] },
+  { id: 'm7', home_team: 'Chelsea', away_team: 'Newcastle United', home_score: 1, away_score: 0, league: 'premier-league', match_date: '2026-03-08T16:30:00.000Z', status: 'finished', minute: 90, venue: 'Stamford Bridge', home_possession: 58, away_possession: 42, home_shots: 12, away_shots: 8, home_shots_on_target: 5, away_shots_on_target: 2, home_corners: 6, away_corners: 4, home_fouls: 10, away_fouls: 12, home_yellow_cards: 2, away_yellow_cards: 3, home_red_cards: 0, away_red_cards: 0, home_scorers: ['Palmer 64\''], away_scorers: [] },
+  { id: 'm8', home_team: 'Atletico Madrid', away_team: 'Athletic Club', home_score: 2, away_score: 2, league: 'la-liga', match_date: '2026-03-08T17:00:00.000Z', status: 'finished', minute: 90, venue: 'Metropolitano', home_possession: 47, away_possession: 53, home_shots: 11, away_shots: 12, home_shots_on_target: 4, away_shots_on_target: 4, home_corners: 3, away_corners: 5, home_fouls: 14, away_fouls: 9, home_yellow_cards: 4, away_yellow_cards: 1, home_red_cards: 0, away_red_cards: 0, home_scorers: ['Griezmann 23\'', 'Morata 70\''], away_scorers: ['Williams 41\'', 'Sancet 76\''] },
+  { id: 'm9', home_team: 'Napoli', away_team: 'AC Milan', home_score: 1, away_score: 3, league: 'serie-a', match_date: '2026-03-09T19:45:00.000Z', status: 'finished', minute: 90, venue: 'Stadio Diego Armando Maradona', home_possession: 52, away_possession: 48, home_shots: 10, away_shots: 13, home_shots_on_target: 3, away_shots_on_target: 7, home_corners: 6, away_corners: 4, home_fouls: 9, away_fouls: 13, home_yellow_cards: 2, away_yellow_cards: 2, home_red_cards: 0, away_red_cards: 0, home_scorers: ['Osimhen 38\''], away_scorers: ['Leao 12\'', 'Pulisic 57\'', 'Giroud 83\''] },
+  { id: 'm10', home_team: 'RB Leipzig', away_team: 'Stuttgart', home_score: 2, away_score: 1, league: 'bundesliga', match_date: '2026-03-08T14:30:00.000Z', status: 'finished', minute: 90, venue: 'Red Bull Arena', home_possession: 55, away_possession: 45, home_shots: 15, away_shots: 9, home_shots_on_target: 6, away_shots_on_target: 4, home_corners: 8, away_corners: 2, home_fouls: 7, away_fouls: 10, home_yellow_cards: 1, away_yellow_cards: 2, home_red_cards: 0, away_red_cards: 0, home_scorers: ['Openda 29\'', 'Xavi Simons 67\''], away_scorers: ['Undav 51\''] },
+  { id: 'm11', home_team: 'Lille', away_team: 'Lyon', home_score: 0, away_score: 0, league: 'ligue-1', match_date: '2026-03-12T19:45:00.000Z', status: 'scheduled', minute: null, venue: 'Stade Pierre-Mauroy', home_possession: null, away_possession: null, home_shots: null, away_shots: null, home_shots_on_target: null, away_shots_on_target: null, home_corners: null, away_corners: null, home_fouls: null, away_fouls: null, home_yellow_cards: null, away_yellow_cards: null, home_red_cards: null, away_red_cards: null, home_scorers: [], away_scorers: [] },
+  { id: 'm12', home_team: 'Arsenal', away_team: 'Atletico Madrid', home_score: 1, away_score: 0, league: 'champions-league', match_date: '2026-03-12T20:00:00.000Z', status: 'scheduled', minute: null, venue: 'Emirates Stadium', home_possession: null, away_possession: null, home_shots: null, away_shots: null, home_shots_on_target: null, away_shots_on_target: null, home_corners: null, away_corners: null, home_fouls: null, away_fouls: null, home_yellow_cards: null, away_yellow_cards: null, home_red_cards: null, away_red_cards: null, home_scorers: [], away_scorers: [] },
+  { id: 'm13', home_team: 'Real Madrid', away_team: 'Paris Saint-Germain', home_score: 2, away_score: 1, league: 'champions-league', match_date: '2026-03-07T20:00:00.000Z', status: 'finished', minute: 90, venue: 'Santiago Bernabeu', home_possession: 46, away_possession: 54, home_shots: 11, away_shots: 15, home_shots_on_target: 5, away_shots_on_target: 6, home_corners: 4, away_corners: 7, home_fouls: 12, away_fouls: 8, home_yellow_cards: 1, away_yellow_cards: 2, home_red_cards: 0, away_red_cards: 0, home_scorers: ['Bellingham 33\'', 'Vinicius Jr. 81\''], away_scorers: ['Dembele 52\''] },
+  { id: 'm14', home_team: 'Marseille', away_team: 'Nice', home_score: 2, away_score: 0, league: 'ligue-1', match_date: '2026-03-10T18:00:00.000Z', status: 'live', minute: 58, venue: 'Orange Velodrome', home_possession: 61, away_possession: 39, home_shots: 13, away_shots: 5, home_shots_on_target: 5, away_shots_on_target: 1, home_corners: 6, away_corners: 1, home_fouls: 9, away_fouls: 8, home_yellow_cards: 1, away_yellow_cards: 2, home_red_cards: 0, away_red_cards: 1, home_scorers: ['Aubameyang 21\'', 'Harit 48\''], away_scorers: [] },
+  { id: 'm15', home_team: 'Villarreal', away_team: 'Sevilla', home_score: 0, away_score: 0, league: 'la-liga', match_date: '2026-03-11T17:30:00.000Z', status: 'scheduled', minute: null, venue: 'Estadio de la Ceramica', home_possession: null, away_possession: null, home_shots: null, away_shots: null, home_shots_on_target: null, away_shots_on_target: null, home_corners: null, away_corners: null, home_fouls: null, away_fouls: null, home_yellow_cards: null, away_yellow_cards: null, home_red_cards: null, away_red_cards: null, home_scorers: [], away_scorers: [] }
+];
+
+const players = [
+  { id: 'p1', name: 'Mohamed Salah', team: 'Liverpool', position: 'Forward', goals: 21, assists: 11, yellow_cards: 2, red_cards: 0, appearances: 27, league: 'premier-league', nationality: 'Egypt' },
+  { id: 'p2', name: 'Erling Haaland', team: 'Manchester City', position: 'Forward', goals: 20, assists: 5, yellow_cards: 1, red_cards: 0, appearances: 25, league: 'premier-league', nationality: 'Norway' },
+  { id: 'p3', name: 'Cole Palmer', team: 'Chelsea', position: 'Midfielder', goals: 16, assists: 8, yellow_cards: 4, red_cards: 0, appearances: 26, league: 'premier-league', nationality: 'England' },
+  { id: 'p4', name: 'Robert Lewandowski', team: 'Barcelona', position: 'Forward', goals: 22, assists: 6, yellow_cards: 2, red_cards: 0, appearances: 26, league: 'la-liga', nationality: 'Poland' },
+  { id: 'p5', name: 'Kylian Mbappe', team: 'Real Madrid', position: 'Forward', goals: 21, assists: 7, yellow_cards: 1, red_cards: 0, appearances: 25, league: 'la-liga', nationality: 'France' },
+  { id: 'p6', name: 'Antoine Griezmann', team: 'Atletico Madrid', position: 'Forward', goals: 15, assists: 9, yellow_cards: 3, red_cards: 0, appearances: 25, league: 'la-liga', nationality: 'France' },
+  { id: 'p7', name: 'Lautaro Martinez', team: 'Inter Milan', position: 'Forward', goals: 23, assists: 4, yellow_cards: 3, red_cards: 0, appearances: 27, league: 'serie-a', nationality: 'Argentina' },
+  { id: 'p8', name: 'Victor Osimhen', team: 'Napoli', position: 'Forward', goals: 18, assists: 3, yellow_cards: 4, red_cards: 0, appearances: 24, league: 'serie-a', nationality: 'Nigeria' },
+  { id: 'p9', name: 'Christian Pulisic', team: 'AC Milan', position: 'Forward', goals: 14, assists: 8, yellow_cards: 2, red_cards: 0, appearances: 26, league: 'serie-a', nationality: 'United States' },
+  { id: 'p10', name: 'Harry Kane', team: 'Bayern Munich', position: 'Forward', goals: 24, assists: 6, yellow_cards: 1, red_cards: 0, appearances: 24, league: 'bundesliga', nationality: 'England' },
+  { id: 'p11', name: 'Victor Boniface', team: 'Bayer Leverkusen', position: 'Forward', goals: 17, assists: 7, yellow_cards: 3, red_cards: 0, appearances: 23, league: 'bundesliga', nationality: 'Nigeria' },
+  { id: 'p12', name: 'Lois Openda', team: 'RB Leipzig', position: 'Forward', goals: 16, assists: 5, yellow_cards: 4, red_cards: 0, appearances: 24, league: 'bundesliga', nationality: 'Belgium' },
+  { id: 'p13', name: 'Ousmane Dembele', team: 'Paris Saint-Germain', position: 'Forward', goals: 19, assists: 10, yellow_cards: 2, red_cards: 0, appearances: 24, league: 'ligue-1', nationality: 'France' },
+  { id: 'p14', name: 'Alexandre Lacazette', team: 'Lyon', position: 'Forward', goals: 15, assists: 4, yellow_cards: 3, red_cards: 0, appearances: 23, league: 'ligue-1', nationality: 'France' },
+  { id: 'p15', name: 'Jonathan David', team: 'Lille', position: 'Forward', goals: 17, assists: 3, yellow_cards: 1, red_cards: 0, appearances: 25, league: 'ligue-1', nationality: 'Canada' },
+  { id: 'p16', name: 'Vinicius Junior', team: 'Real Madrid', position: 'Forward', goals: 10, assists: 7, yellow_cards: 4, red_cards: 0, appearances: 20, league: 'champions-league', nationality: 'Brazil' },
+  { id: 'p17', name: 'Bukayo Saka', team: 'Arsenal', position: 'Forward', goals: 9, assists: 6, yellow_cards: 1, red_cards: 0, appearances: 8, league: 'champions-league', nationality: 'England' },
+  { id: 'p18', name: 'Jude Bellingham', team: 'Real Madrid', position: 'Midfielder', goals: 8, assists: 4, yellow_cards: 2, red_cards: 0, appearances: 8, league: 'champions-league', nationality: 'England' }
+];
+
+module.exports = { leagues, teams, matches, players };

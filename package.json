@@ -1,0 +1,11 @@
+{
+  "name": "nexora-cinematic-experience",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NEXORA — an immersive cinematic journey into autonomous mobility in 2055",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node scripts/build.mjs && node --check server.js && node --check public/src/App.js && node --check public/src/main.js && node --check dist/server/index.js"
+  }
+}
