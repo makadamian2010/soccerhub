@@ -26,7 +26,7 @@ function sendFile(filePath, response) {
         return;
       }
       response.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-      response.end('Unable to load NEXORA.');
+      response.end('Unable to load ABYSS.');
       return;
     }
     response.writeHead(200, {
@@ -50,5 +50,5 @@ const server = http.createServer((request, response) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`NEXORA running at http://${HOST}:${PORT}`);
+  console.log(`ABYSS running at http://${HOST}:${PORT}`);
 });

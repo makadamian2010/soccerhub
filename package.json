@@ -1,8 +1,8 @@
 {
-  "name": "nexora-cinematic-experience",
+  "name": "project-abyss",
   "version": "1.0.0",
   "private": true,
-  "description": "NEXORA — an immersive cinematic journey into autonomous mobility in 2055",
+  "description": "ABYSS — an immersive interactive deep ocean expedition and restoration simulator",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
