@@ -5,6 +5,18 @@ const { useEffect, useRef, useState } = React;
 const TAU = Math.PI * 2;
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const lerp = (a, b, amount) => a + (b - a) * amount;
+const WORLD_RADIUS = 59;
+
+const REGIONS = [
+  { id: 'open', label: 'Open Ocean', code: 'PELAGIC-01', center: [0, 0], bg: 0x031b22, fog: 0x052a31, density: .023, accent: 0x7cefe6, ambience: 'Wide currents · Migrating cetaceans', pollution: ['PLASTIC BOTTLE', 'PLASTIC BAG'] },
+  { id: 'reef', label: 'Coral Reef', code: 'REEF-02', center: [-23, 16], bg: 0x06272c, fog: 0x0a3c3b, density: .021, accent: 0xff8f73, ambience: 'Warm reef · Dense biodiversity', pollution: ['GLASS BOTTLE', 'BROKEN CRATE'] },
+  { id: 'kelp', label: 'Kelp Forest', code: 'KELP-03', center: [-29, -22], bg: 0x071f20, fog: 0x12382c, density: .031, accent: 0x6fdb83, ambience: 'Canopy current · Low visibility', pollution: ['GHOST NET', 'RUBBER TIRE'] },
+  { id: 'trench', label: 'Deep Trench', code: 'HADAL-04', center: [8, -38], bg: 0x010b14, fog: 0x071323, density: .036, accent: 0x5b8cff, ambience: 'Hadal pressure · Sparse light', pollution: ['METAL DEBRIS', 'MICROPLASTIC CLUSTER'] },
+  { id: 'shipwreck', label: 'Ship Graveyard', code: 'WRECK-05', center: [33, 12], bg: 0x07191d, fog: 0x192c2c, density: .029, accent: 0xd88d55, ambience: 'Iron hulls · Enclosed habitat', pollution: ['OIL BARREL', 'LOST CONTAINER'] },
+  { id: 'volcanic', label: 'Volcanic Area', code: 'VENT-06', center: [27, 35], bg: 0x100e12, fog: 0x251b20, density: .032, accent: 0xff7651, ambience: 'Thermal vents · Mineral plumes', pollution: ['METAL CANISTER', 'RUBBER TIRE'] },
+  { id: 'crystal', label: 'Crystal Caverns', code: 'CAVE-07', center: [-8, 39], bg: 0x071026, fog: 0x111b3e, density: .028, accent: 0xb79bff, ambience: 'Resonant cavern · Mineral light', pollution: ['GLASS BOTTLE', 'BROKEN CRATE'] },
+  { id: 'bio', label: 'Bioluminescent Zone', code: 'LUMEN-08', center: [-43, 2], bg: 0x020d18, fog: 0x062332, density: .034, accent: 0x55ffd5, ambience: 'Living light · Nocturnal fauna', pollution: ['MICROPLASTIC CLUSTER', 'PLASTIC BOTTLE'] }
+];
 
 const VIEWS = [
   { id: 'free', label: 'Free orbit', key: '01' },
@@ -86,18 +98,33 @@ const MODES = [
   { id: 'ai', label: 'AI vision', shortcut: '4' }
 ];
 
-const POLLUTION = [
-  { type: 'GHOST NET', risk: 'CRITICAL', weight: '84.2 KG', method: 'DRONE CUT + RETRIEVAL' },
-  { type: 'POLYMER DEBRIS', risk: 'HIGH', weight: '12.8 KG', method: 'VACUUM SEPARATION' },
-  { type: 'DISCARDED TIRE', risk: 'MEDIUM', weight: '21.4 KG', method: 'MANIPULATOR ARM' },
-  { type: 'METAL CANISTER', risk: 'HIGH', weight: '34.0 KG', method: 'SEALED CONTAINMENT' },
-  { type: 'MICROPLASTIC FIELD', risk: 'HIGH', weight: '7.6 KG', method: 'MEMBRANE FILTRATION' }
-];
+const POLLUTION = REGIONS.flatMap((region, regionIndex) => region.pollution.map((type, itemIndex) => {
+  const plastic = /PLASTIC|NET|TIRE/.test(type);
+  const weight = Number((4.8 + seeded(regionIndex * 3 + itemIndex, 105) * (type === 'LOST CONTAINER' ? 110 : 44)).toFixed(1));
+  return {
+    type,
+    label: type.replace(/\b\w/g, letter => letter.toUpperCase()),
+    risk: /NET|OIL|CONTAINER/.test(type) ? 'CRITICAL' : /MICRO|METAL/.test(type) ? 'HIGH' : 'MEDIUM',
+    weight,
+    plastic: plastic ? Number((weight * (/TIRE/.test(type) ? .72 : .94)).toFixed(1)) : 0,
+    method: /NET/.test(type) ? 'ARM CUT + RETRIEVAL' : /MICRO/.test(type) ? 'MEMBRANE FILTRATION' : 'MANIPULATOR RECOVERY',
+    region: region.id,
+    regionIndex,
+    itemIndex
+  };
+}));
 
 const SPECIES = {
   whale: { type: 'HUMPBACK WHALE', meta: 'MEGAPTERA NOVAEANGLIAE', detail: 'Adult · 14.8 m · Acoustic contact stable' },
   manta: { type: 'OCEANIC MANTA', meta: 'MOBULA BIROSTRIS', detail: 'Adult · 5.1 m wingspan · Non-threat' },
-  fish: { type: 'YELLOWTAIL SCHOOL', meta: 'SERIOLA LALANDI', detail: '76 signatures · Coordinated movement' }
+  fish: { type: 'YELLOWTAIL SCHOOL', meta: 'SERIOLA LALANDI', detail: '76 signatures · Coordinated movement' },
+  shark: { type: 'GREAT WHITE SHARK', meta: 'CARCHARODON CARCHARIAS', detail: 'Adult · 5.4 m · Respectful observation distance' },
+  hammerhead: { type: 'HAMMERHEAD SHARK', meta: 'SPHYRNA MOKARRAN', detail: 'Adult · Electroreception active' },
+  turtle: { type: 'GREEN SEA TURTLE', meta: 'CHELONIA MYDAS', detail: 'Resting near reef shelf · Protected' },
+  dolphin: { type: 'COMMON DOLPHIN POD', meta: 'DELPHINUS DELPHIS', detail: 'Six signatures · Social escort behavior' },
+  orca: { type: 'ORCA', meta: 'ORCINUS ORCA', detail: 'Transient adult · Acoustic contact stable' },
+  squid: { type: 'GIANT SQUID', meta: 'ARCHITEUTHIS DUX', detail: 'Deep-trench contact · Low-light observation' },
+  octopus: { type: 'GIANT PACIFIC OCTOPUS', meta: 'ENTEROCTOPUS DOFLEINI', detail: 'Sheltering inside wreckage' }
 };
 
 function seeded(index, salt = 1) {
@@ -199,9 +226,9 @@ function createSubmarine(scene, clickable) {
   addMesh(sub, finGeo, titanium, [2.7, 1.48, 0], null, [0, 0, 0]);
   addMesh(sub, finGeo, titanium, [2.7, -1.45, 0], null, [Math.PI, 0, 0]);
   addMesh(sub, new THREE.BoxGeometry(2.7, .16, 1.3), dark, [1.25, 2.29, 0]);
-  addMesh(sub, new THREE.PlaneGeometry(2.1, .7), cyan, [1.1, 2.39, -.01], null, [-Math.PI / 2, 0, 0]);
+  const bayDoor = addMesh(sub, new THREE.PlaneGeometry(2.1, .7), cyan, [1.1, 2.39, -.01], null, [-Math.PI / 2, 0, 0]);
 
-  sub.userData = { thrusters, arms, dome, cyan, amber };
+  sub.userData = { thrusters, arms, dome, cyan, amber, bayDoor };
   return sub;
 }
 
@@ -247,9 +274,99 @@ function createManta(scene, clickable) {
   return manta;
 }
 
-function createWorld(scene, clickable) {
+function createMarineLife(scene, clickable, quality = 1) {
+  const creatures = [];
+  const profiles = [
+    ['GREAT WHITE SHARK', 'CARCHARODON CARCHARIAS', 'shark', 'open', 2.6, 1.02, 0],
+    ['HAMMERHEAD SHARK', 'SPHYRNA MOKARRAN', 'hammerhead', 'shipwreck', 2.35, .86, 1],
+    ['TIGER SHARK', 'GALEOCERDO CUVIER', 'shark', 'shipwreck', 2.2, .92, 2],
+    ['WHALE SHARK', 'RHINCODON TYPUS', 'shark', 'reef', 3.7, .46, 3],
+    ['BLUE WHALE', 'BALAENOPTERA MUSCULUS', 'whale', 'open', 5.1, .22, 4],
+    ['ORCA', 'ORCINUS ORCA', 'whale', 'crystal', 2.75, .58, 5],
+    ['DOLPHIN POD', 'DELPHINUS DELPHIS', 'dolphin', 'open', 1.35, 1.34, 6],
+    ['GREEN SEA TURTLE', 'CHELONIA MYDAS', 'turtle', 'reef', 1.15, .34, 7],
+    ['SEA LION', 'ZALOPHUS CALIFORNIANUS', 'seal', 'kelp', 1.35, .72, 8],
+    ['HARBOR SEAL', 'PHOCA VITULINA', 'seal', 'kelp', 1.08, .64, 9],
+    ['STINGRAY', 'DASYATIS PASTINACA', 'ray', 'reef', 1.45, .48, 10],
+    ['GIANT PACIFIC OCTOPUS', 'ENTEROCTOPUS DOFLEINI', 'octopus', 'shipwreck', 1.25, .16, 11],
+    ['GIANT SQUID', 'ARCHITEUTHIS DUX', 'squid', 'trench', 2.25, .24, 12]
+  ];
+  if (quality < .75) profiles.splice(8, 2);
+  const palette = [0x284954, 0x415e64, 0x193f48, 0x426b68, 0x254354, 0x121f25, 0x587a7b, 0x4f665d, 0x3a4d4e, 0x23383b, 0x315e65, 0x5a3b34, 0x563d55];
+
+  profiles.forEach(([type, meta, variant, regionId, scale, speed, index]) => {
+    const region = REGIONS.find(item => item.id === regionId);
+    const creature = new THREE.Group();
+    const skin = makeMaterial(palette[index % palette.length], { roughness: .72, metalness: 0 });
+    const pale = makeMaterial(0x78908b, { roughness: .8, metalness: 0 });
+    let body;
+
+    if (variant === 'ray') {
+      const rayShape = new THREE.BufferGeometry();
+      rayShape.setAttribute('position', new THREE.Float32BufferAttribute([-2.8, 0, 0, 0, .28, -3.2, 2.8, 0, 0, -2.8, 0, 0, 2.8, 0, 0, 0, .28, 3.2], 3));
+      rayShape.computeVertexNormals();
+      body = addMesh(creature, rayShape, skin, [0, 0, 0]);
+      addMesh(creature, new THREE.CylinderGeometry(.035, .08, 3.8, 6), skin, [3.4, 0, 0], null, [0, 0, Math.PI / 2]);
+    } else if (variant === 'turtle') {
+      body = addMesh(creature, new THREE.SphereGeometry(1, 14, 10), skin, [0, 0, 0], [1.35, .42, 1]);
+      addMesh(creature, new THREE.SphereGeometry(.4, 10, 8), pale, [-1.45, -.02, 0], [1, .7, .72]);
+      [-1, 1].forEach(side => {
+        addMesh(creature, new THREE.ConeGeometry(.32, 1.7, 3), skin, [-.1, -.08, side * 1.05], null, [Math.PI / 2, 0, side * .85]);
+      });
+    } else if (variant === 'octopus' || variant === 'squid') {
+      body = addMesh(creature, new THREE.SphereGeometry(1, 14, 10), skin, [0, .3, 0], [variant === 'squid' ? 1.8 : 1.05, 1.15, 1]);
+      for (let arm = 0; arm < 8; arm++) {
+        const angle = arm / 8 * TAU;
+        const tentacle = addMesh(creature, new THREE.CylinderGeometry(.035, .1, variant === 'squid' ? 3.4 : 2.1, 6), skin,
+          [1.25 + Math.cos(angle) * .34, -.75, Math.sin(angle) * .5], null,
+          [Math.sin(angle) * .35, 0, -1.1 + Math.cos(angle) * .2]);
+        tentacle.userData.phase = arm / 8 * TAU;
+      }
+    } else {
+      body = addMesh(creature, new THREE.SphereGeometry(1, 16, 10), skin, [0, 0, 0], [2.35, .55, .64]);
+      addMesh(creature, new THREE.ConeGeometry(.58, 1.8, 3), skin, [2.75, 0, 0], null, [0, 0, -Math.PI / 2]);
+      addMesh(creature, new THREE.ConeGeometry(.42, 1.1, 3), skin, [.15, .65, 0], null, [0, 0, -.12]);
+      if (variant === 'hammerhead') addMesh(creature, new THREE.CapsuleGeometry(.18, 1.55, 4, 8), skin, [-2.32, 0, 0], null, [Math.PI / 2, 0, 0]);
+      if (variant === 'dolphin') addMesh(creature, new THREE.CylinderGeometry(.08, .16, 1.2, 8), pale, [-2.35, 0, 0], null, [0, 0, Math.PI / 2]);
+      if (variant === 'whale') addMesh(creature, new THREE.SphereGeometry(.9, 12, 8), pale, [-.45, -.42, 0], [1.8, .25, .62]);
+    }
+
+    body.userData = { kind: 'species', type, meta, detail: `${region.label} resident · Natural movement model`, species: variant };
+    clickable.push(body);
+    creature.scale.setScalar(scale);
+    creature.position.set(region.center[0] + (seeded(index, 111) - .5) * 10, -1 + seeded(index, 112) * 10, region.center[1] + (seeded(index, 113) - .5) * 10);
+    creature.userData = {
+      type, variant, region, speed, phase: seeded(index, 114) * TAU,
+      baseY: creature.position.y, radius: 5 + seeded(index, 115) * 7,
+      tail: creature.children[1] || null
+    };
+    scene.add(creature);
+    creatures.push(creature);
+
+    if (variant === 'dolphin') {
+      for (let pod = 1; pod < 5; pod++) {
+        const member = creature.clone();
+        member.scale.multiplyScalar(.72 + seeded(pod, 116) * .18);
+        member.userData = { ...creature.userData, phase: creature.userData.phase + pod * .8, radius: creature.userData.radius + pod * 1.4, podOffset: pod };
+        scene.add(member); creatures.push(member);
+      }
+    }
+    if (variant === 'turtle') {
+      for (let colony = 1; colony < 3; colony++) {
+        const member = creature.clone();
+        member.scale.multiplyScalar(.72 + colony * .1);
+        member.userData = { ...creature.userData, phase: creature.userData.phase + colony * 2.1, radius: creature.userData.radius + colony * 2 };
+        scene.add(member); creatures.push(member);
+      }
+    }
+  });
+
+  return { creatures };
+}
+
+function createWorld(scene, clickable, quality = 1) {
   const floorMaterial = makeMaterial(0x082b2d, { roughness: .95, metalness: 0 });
-  const floorGeo = new THREE.PlaneGeometry(130, 110, 70, 56);
+  const floorGeo = new THREE.PlaneGeometry(150, 150, quality < .75 ? 42 : 70, quality < .75 ? 42 : 70);
   const p = floorGeo.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i);
@@ -262,7 +379,7 @@ function createWorld(scene, clickable) {
   const rocks = new THREE.Group();
   scene.add(rocks);
   const rockMaterials = [makeMaterial(0x123b3b, { roughness: .97 }), makeMaterial(0x0b282c, { roughness: .99 }), makeMaterial(0x1d3e39, { roughness: .93 })];
-  for (let i = 0; i < 54; i++) {
+  for (let i = 0; i < Math.round(54 * quality); i++) {
     const angle = seeded(i, 4) * TAU;
     const radius = 13 + seeded(i, 5) * 43;
     const scale = .5 + seeded(i, 7) * 4.8;
@@ -278,7 +395,7 @@ function createWorld(scene, clickable) {
     makeMaterial(0x236f65, { roughness: .82 }), makeMaterial(0x6d506e, { roughness: .8 }),
     makeMaterial(0x8e5c3d, { roughness: .86 }), makeMaterial(0x254f58, { roughness: .85 })
   ];
-  for (let i = 0; i < 46; i++) {
+  for (let i = 0; i < Math.round(56 * quality); i++) {
     const angle = seeded(i, 31) * TAU;
     const radius = 14 + seeded(i, 32) * 38;
     const cluster = new THREE.Group();
@@ -296,7 +413,7 @@ function createWorld(scene, clickable) {
   const grass = new THREE.Group();
   scene.add(grass);
   const grassMaterial = makeMaterial(0x155e58, { roughness: .9, side: THREE.DoubleSide });
-  for (let i = 0; i < 180; i++) {
+  for (let i = 0; i < Math.round(180 * quality); i++) {
     const radius = 11 + seeded(i, 41) * 45;
     const angle = seeded(i, 42) * TAU;
     const blade = addMesh(grass, new THREE.PlaneGeometry(.07 + seeded(i, 43) * .13, .8 + seeded(i, 44) * 2.4, 1, 4), grassMaterial,
@@ -326,13 +443,125 @@ function createWorld(scene, clickable) {
     addMesh(scene, new THREE.SphereGeometry(.1 + h * .025, 10, 8), bioMat, [x, -6.8 + h, z]);
   }
 
-  return { grass, coralMaterials, bioMat };
+  // Natural perimeter: cliffs, trenches, boulder fields and kelp hide the play-space boundary.
+  const boundary = new THREE.Group();
+  scene.add(boundary);
+  for (let i = 0; i < Math.round(34 * quality); i++) {
+    const angle = i / Math.round(34 * quality) * TAU + seeded(i, 121) * .09;
+    const radius = WORLD_RADIUS + 3 + seeded(i, 122) * 6;
+    const height = 9 + seeded(i, 123) * 20;
+    const width = 4 + seeded(i, 124) * 7;
+    addMesh(boundary, new THREE.DodecahedronGeometry(1, 0), rockMaterials[i % rockMaterials.length],
+      [Math.cos(angle) * radius, -7 + height * .42, Math.sin(angle) * radius],
+      [width, height, 5 + seeded(i, 125) * 6],
+      [seeded(i, 126) * .45, -angle, seeded(i, 127) * .22]);
+  }
+  const trenchMat = makeMaterial(0x020c12, { roughness: 1, metalness: 0 });
+  for (let i = 0; i < 8; i++) {
+    const angle = i / 8 * TAU + .25;
+    addMesh(boundary, new THREE.TorusGeometry(WORLD_RADIUS - 1.5 - i * .45, .22 + i * .06, 5, 90), trenchMat,
+      [0, -7.48 - i * .13, 0], null, [Math.PI / 2, 0, 0]);
+  }
+
+  // Kelp belts form a soft visual wall and a dense ecosystem around the western shelf.
+  const kelp = new THREE.Group();
+  scene.add(kelp);
+  const kelpMaterial = makeMaterial(0x176240, { roughness: .88, side: THREE.DoubleSide });
+  for (let i = 0; i < Math.round(92 * quality); i++) {
+    const angle = Math.PI * .68 + seeded(i, 131) * 1.05;
+    const radius = 41 + seeded(i, 132) * 19;
+    const height = 3 + seeded(i, 133) * 8;
+    const stalk = addMesh(kelp, new THREE.PlaneGeometry(.35 + seeded(i, 134) * .45, height, 1, 5), kelpMaterial,
+      [Math.cos(angle) * radius, -7 + height / 2, Math.sin(angle) * radius], null,
+      [0, angle + seeded(i, 135), (seeded(i, 136) - .5) * .16]);
+    stalk.userData.phase = seeded(i, 137) * TAU;
+  }
+
+  // Sand ripples and small seabed life are instanced to keep mobile draw calls low.
+  const rippleMat = makeMaterial(0x17413d, { roughness: .96, metalness: 0 });
+  REGIONS.forEach((region, regionIndex) => {
+    for (let ripple = 0; ripple < 5; ripple++) {
+      addMesh(scene, new THREE.TorusGeometry(2.2 + ripple * .9, .035, 4, 40, Math.PI * 1.35), rippleMat,
+        [region.center[0] + 2, -7.24 + ripple * .012, region.center[1] - 1], [1.5, 1, .72], [Math.PI / 2, 0, regionIndex * .43]);
+    }
+  });
+
+  const scatter = (geometry, material, count, salt, scaleMin, scaleMax) => {
+    const mesh = new THREE.InstancedMesh(geometry, material, Math.round(count * quality));
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < mesh.count; i++) {
+      const angle = seeded(i, salt) * TAU;
+      const radius = 8 + seeded(i, salt + 1) * 49;
+      const scale = scaleMin + seeded(i, salt + 2) * (scaleMax - scaleMin);
+      dummy.position.set(Math.cos(angle) * radius, -7 + scale * .18, Math.sin(angle) * radius);
+      dummy.rotation.set(seeded(i, salt + 3) * TAU, seeded(i, salt + 4) * TAU, seeded(i, salt + 5) * TAU);
+      dummy.scale.setScalar(scale); dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
+    }
+    mesh.castShadow = false; mesh.receiveShadow = true; scene.add(mesh); return mesh;
+  };
+  const shells = scatter(new THREE.TorusGeometry(.22, .055, 5, 10, Math.PI * 1.65), makeMaterial(0x9c8871, { roughness: .86 }), 44, 141, .35, 1.15);
+  const urchins = scatter(new THREE.IcosahedronGeometry(.24, 1), makeMaterial(0x372d43, { roughness: .9 }), 36, 151, .45, 1.25);
+  const anemones = scatter(new THREE.ConeGeometry(.16, .55, 7), makeMaterial(0x9b5270, { roughness: .78 }), 56, 161, .45, 1.35);
+  const starfish = scatter(new THREE.TorusKnotGeometry(.15, .035, 22, 5, 2, 5), makeMaterial(0xd8784b, { roughness: .82 }), 28, 171, .45, 1.15);
+  const crabs = scatter(new THREE.SphereGeometry(.2, 7, 5), makeMaterial(0x9f4f38, { roughness: .88 }), 24, 176, .5, 1.1);
+  [shells, urchins, anemones, starfish, crabs].forEach((mesh, index) => { mesh.userData.decor = ['shells', 'urchins', 'anemones', 'starfish', 'crabs'][index]; });
+
+  // Colorful reef shelves with crevices for small fish and resting turtles.
+  const reefRegion = REGIONS.find(region => region.id === 'reef');
+  const reefPalette = [0xf08a66, 0xa76fc4, 0xe1b55f, 0x35a891, 0x547ac1].map(color => makeMaterial(color, { roughness: .78 }));
+  for (let i = 0; i < Math.round(38 * quality); i++) {
+    const x = reefRegion.center[0] + (seeded(i, 181) - .5) * 18;
+    const z = reefRegion.center[1] + (seeded(i, 182) - .5) * 17;
+    const h = .5 + seeded(i, 183) * 3.2;
+    addMesh(scene, new THREE.CylinderGeometry(.08 + h * .04, .25 + h * .08, h, 7), reefPalette[i % reefPalette.length], [x, -7 + h / 2, z], null, [(seeded(i, 184) - .5) * .4, 0, (seeded(i, 185) - .5) * .4]);
+  }
+
+  // Major landmark: a broken, rusted research ship colonized by coral and fish.
+  const wreckRegion = REGIONS.find(region => region.id === 'shipwreck');
+  const shipwreck = new THREE.Group();
+  shipwreck.position.set(wreckRegion.center[0], -5.5, wreckRegion.center[1]);
+  shipwreck.rotation.set(.08, -.48, -.12);
+  scene.add(shipwreck);
+  const rust = makeMaterial(0x57372d, { roughness: .92, metalness: .4 });
+  const wreckDark = makeMaterial(0x080d0e, { roughness: 1, metalness: .25 });
+  addMesh(shipwreck, new THREE.CylinderGeometry(2.5, 3.5, 16, 10, 1, true), rust, [0, 0, 0], [1, .72, 1], [0, 0, Math.PI / 2]);
+  addMesh(shipwreck, new THREE.BoxGeometry(8, 2.2, 5), wreckDark, [1, .35, 0], null, [0, 0, 0]);
+  for (let rib = 0; rib < 7; rib++) addMesh(shipwreck, new THREE.TorusGeometry(2.7, .12, 7, 15, Math.PI), rust, [-5 + rib * 1.7, .2, 0], null, [0, Math.PI / 2, Math.PI / 2]);
+  addMesh(shipwreck, new THREE.BoxGeometry(.28, 10, .28), rust, [-1.8, 5.1, 0], null, [0, 0, .12]);
+  addMesh(shipwreck, new THREE.BoxGeometry(7, .18, .18), rust, [1.1, 7.4, 0], null, [0, 0, -.14]);
+  addMesh(shipwreck, new THREE.BoxGeometry(4.2, .32, 2.2), rust, [7.4, -.4, 0], null, [.2, .5, .4]);
+
+  // Second landmark: a crashed aircraft half-buried in sand and reef growth.
+  const planeRegion = REGIONS.find(region => region.id === 'crystal');
+  const aircraft = new THREE.Group();
+  aircraft.position.set(planeRegion.center[0] - 2, -6.25, planeRegion.center[1] - 2);
+  aircraft.rotation.set(.08, .65, -.18);
+  scene.add(aircraft);
+  const agedMetal = makeMaterial(0x53605d, { roughness: .77, metalness: .68 });
+  const windowMat = makeMaterial(0x06171c, { roughness: .2, metalness: .1, emissive: 0x08262b, emissiveIntensity: .45 });
+  addMesh(aircraft, new THREE.CapsuleGeometry(1.05, 9.5, 7, 16), agedMetal, [0, 0, 0], null, [0, 0, Math.PI / 2]);
+  addMesh(aircraft, new THREE.BoxGeometry(4.8, .18, 14), agedMetal, [0, -.15, 0], null, [0, .08, 0]);
+  addMesh(aircraft, new THREE.BoxGeometry(2.3, 3.1, .22), agedMetal, [4.5, 1.15, 0], null, [0, 0, -.12]);
+  for (let window = 0; window < 8; window++) addMesh(aircraft, new THREE.SphereGeometry(.2, 8, 6), windowMat, [-3.4 + window * .85, .5, -1.02]);
+  addMesh(aircraft, new THREE.BoxGeometry(2.3, 1.7, 2.2), agedMetal, [-5.7, -.22, .5], null, [.4, .3, .5]);
+
+  // Crystal and bioluminescent zones pulse independently of the vehicle lights.
+  const crystalMat = makeMaterial(0x8d7fe6, { emissive: 0x4d3eb9, emissiveIntensity: 1.65, roughness: .26, metalness: .2 });
+  for (let i = 0; i < Math.round(26 * quality); i++) {
+    const region = i % 2 ? planeRegion : REGIONS.find(item => item.id === 'bio');
+    const h = .8 + seeded(i, 191) * 4.6;
+    addMesh(scene, new THREE.ConeGeometry(.18 + h * .06, h, 5), i % 2 ? crystalMat : bioMat,
+      [region.center[0] + (seeded(i, 192) - .5) * 15, -7 + h / 2, region.center[1] + (seeded(i, 193) - .5) * 15], null,
+      [(seeded(i, 194) - .5) * .32, seeded(i, 195) * TAU, (seeded(i, 196) - .5) * .32]);
+  }
+
+  return { grass, kelp, coralMaterials, bioMat, crystalMat, shipwreck, aircraft };
 }
 
-function createFish(scene, clickable) {
+function createFish(scene, clickable, quality = 1) {
   const group = new THREE.Group();
   scene.add(group);
-  const count = 86;
+  const count = Math.round(86 * quality);
   const bodyGeo = new THREE.SphereGeometry(1, 8, 6);
   const tailGeo = new THREE.ConeGeometry(.48, 1.2, 3);
   const bodyMat = makeMaterial(0x5fb2aa, { roughness: .55, metalness: .12 });
@@ -347,8 +576,8 @@ function createFish(scene, clickable) {
   return { group, bodies, tails, count };
 }
 
-function createParticles(scene) {
-  const count = 1500;
+function createParticles(scene, quality = 1) {
+  const count = Math.round(1500 * quality);
   const positions = new Float32Array(count * 3);
   const speeds = new Float32Array(count);
   for (let i = 0; i < count; i++) {
@@ -363,7 +592,7 @@ function createParticles(scene) {
   const points = new THREE.Points(geo, material);
   scene.add(points);
 
-  const bubbleCount = 130;
+  const bubbleCount = Math.round(130 * quality);
   const bubblePositions = new Float32Array(bubbleCount * 3);
   for (let i = 0; i < bubbleCount; i++) {
     bubblePositions[i * 3] = (seeded(i, 71) - .5) * 65;
@@ -383,15 +612,21 @@ function createPollution(scene, clickable) {
   const waste = [];
   const warning = makeMaterial(0xff834f, { emissive: 0x9b2b12, emissiveIntensity: .7, roughness: .6 });
   const dark = makeMaterial(0x1e2525, { roughness: .8, metalness: .35 });
-  const positions = [[-10, -5.8, 10], [13, -6.5, 7], [18, -6.25, -7], [-15, -6.4, -15], [5, -6.8, 17]];
-  positions.forEach((position, i) => {
+  const glass = makeMaterial(0x4e7370, { transparent: true, opacity: .58, roughness: .18, metalness: .08 });
+  POLLUTION.forEach((item, i) => {
+    const region = REGIONS[item.regionIndex];
+    const angle = item.itemIndex * Math.PI + seeded(i, 201) * .8;
+    const radius = 5 + seeded(i, 202) * 7;
+    const position = [region.center[0] + Math.cos(angle) * radius, -6.35 + seeded(i, 203) * .65, region.center[1] + Math.sin(angle) * radius];
     let mesh;
-    if (i === 0) mesh = addMesh(group, new THREE.TorusKnotGeometry(.9, .045, 80, 7), warning, position, [1.8, 1.1, 1.4], [1, .2, .3]);
-    if (i === 1) mesh = addMesh(group, new THREE.CapsuleGeometry(.23, 1.2, 4, 8), warning, position, null, [0, .4, 1.2]);
-    if (i === 2) mesh = addMesh(group, new THREE.TorusGeometry(.78, .26, 10, 24), dark, position, null, [1.2, 0, .3]);
-    if (i === 3) mesh = addMesh(group, new THREE.CylinderGeometry(.48, .48, 1.7, 12), warning, position, null, [.2, .2, -.6]);
-    if (i === 4) mesh = addMesh(group, new THREE.IcosahedronGeometry(.8, 1), warning, position, [2.7, .28, 1.8]);
-    mesh.userData = { kind: 'pollution', index: i, ...POLLUTION[i] };
+    if (/NET/.test(item.type)) mesh = addMesh(group, new THREE.TorusKnotGeometry(.9, .045, 80, 7), warning, position, [1.8, 1.1, 1.4], [1, .2, .3]);
+    else if (/BOTTLE/.test(item.type)) mesh = addMesh(group, new THREE.CapsuleGeometry(.22, 1.15, 4, 8), /GLASS/.test(item.type) ? glass : warning, position, null, [0, .4, 1.2]);
+    else if (/TIRE/.test(item.type)) mesh = addMesh(group, new THREE.TorusGeometry(.78, .26, 10, 24), dark, position, null, [1.2, 0, .3]);
+    else if (/BARREL|CANISTER/.test(item.type)) mesh = addMesh(group, new THREE.CylinderGeometry(.48, .48, 1.7, 12), warning, position, null, [.2, .2, -.6]);
+    else if (/CONTAINER|CRATE/.test(item.type)) mesh = addMesh(group, new THREE.BoxGeometry(/CONTAINER/.test(item.type) ? 3.2 : 1.25, /CONTAINER/.test(item.type) ? 1.4 : 1.15, /CONTAINER/.test(item.type) ? 1.5 : 1.2), dark, position, null, [seeded(i, 204), seeded(i, 205), seeded(i, 206)]);
+    else if (/BAG/.test(item.type)) mesh = addMesh(group, new THREE.PlaneGeometry(1.5, 1.7, 3, 3), warning, position, null, [1.1, .3, .5]);
+    else mesh = addMesh(group, new THREE.IcosahedronGeometry(.8, 1), warning, position, [2.7, .28, 1.8]);
+    mesh.userData = { kind: 'pollution', index: i, collected: false, collecting: false, ...item };
     clickable.push(mesh);
     waste.push(mesh);
   });
@@ -405,7 +640,14 @@ function createPollution(scene, clickable) {
     scene.add(drone);
     drones.push(drone);
   }
-  return { group, waste, drones };
+  const collectionParticles = [];
+  for (let i = 0; i < 18; i++) {
+    const mote = addMesh(group, new THREE.SphereGeometry(.025 + seeded(i, 211) * .045, 5, 4), warning, [0, -20, 0]);
+    mote.visible = false;
+    mote.userData.velocity = new THREE.Vector3();
+    collectionParticles.push(mote);
+  }
+  return { group, waste, drones, collectionParticles };
 }
 
 function createSonar(scene) {
@@ -452,26 +694,50 @@ function createAudio() {
   return () => { window.clearInterval(interval); low.stop(); current.stop(); context.close(); };
 }
 
-function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, onTarget, onReady }) {
+function playCollectionSound() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+  const context = new AudioContext();
+  const gain = context.createGain();
+  const tone = context.createOscillator();
+  const chime = context.createOscillator();
+  tone.type = 'sine'; chime.type = 'triangle';
+  tone.frequency.setValueAtTime(180, context.currentTime);
+  tone.frequency.exponentialRampToValueAtTime(640, context.currentTime + .38);
+  chime.frequency.setValueAtTime(920, context.currentTime + .22);
+  chime.frequency.exponentialRampToValueAtTime(1320, context.currentTime + .72);
+  gain.gain.setValueAtTime(.0001, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(.12, context.currentTime + .03);
+  gain.gain.exponentialRampToValueAtTime(.0001, context.currentTime + .82);
+  tone.connect(gain); chime.connect(gain); gain.connect(context.destination);
+  tone.start(); chime.start(context.currentTime + .2); tone.stop(context.currentTime + .5); chime.stop(context.currentTime + .84);
+  window.setTimeout(() => context.close(), 1000);
+}
+
+function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, onTarget, onRegion, onNotification, onReady }) {
   const mountRef = useRef(null);
-  const propsRef = useRef({ mode, cleanupActive, freeFlight, onStats, onNavigation, onTarget, onReady });
+  const propsRef = useRef({ mode, cleanupActive, freeFlight, onStats, onNavigation, onTarget, onRegion, onNotification, onReady });
   const apiRef = useRef(null);
-  propsRef.current = { mode, cleanupActive, freeFlight, onStats, onNavigation, onTarget, onReady };
+  propsRef.current = { mode, cleanupActive, freeFlight, onStats, onNavigation, onTarget, onRegion, onNotification, onReady };
 
   useEffect(() => {
     const mount = mountRef.current;
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const lowPower = coarsePointer || (navigator.hardwareConcurrency || 8) <= 4 || reducedMotion;
+    const quality = lowPower ? .62 : .98;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x031b22);
     scene.fog = new THREE.FogExp2(0x052a31, .024);
 
     const camera = new THREE.PerspectiveCamera(52, mount.clientWidth / mount.clientHeight, .08, 180);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    const renderer = new THREE.WebGLRenderer({ antialias: !lowPower, alpha: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1 : 1.65));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = !lowPower;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.setAttribute('aria-label', 'Interactive 3D underwater world. Drag to orbit and use the mouse wheel to zoom.');
     mount.appendChild(renderer.domElement);
@@ -500,11 +766,12 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
     }
 
     const sub = createSubmarine(scene, clickable);
-    const world = createWorld(scene, clickable);
+    const world = createWorld(scene, clickable, quality);
     const whale = createWhale(scene, clickable);
     const manta = createManta(scene, clickable);
-    const fish = createFish(scene, clickable);
-    const particles = createParticles(scene);
+    const fauna = createMarineLife(scene, clickable, quality);
+    const fish = createFish(scene, clickable, quality);
+    const particles = createParticles(scene, quality);
     const pollution = createPollution(scene, clickable);
     const sonar = createSonar(scene);
 
@@ -512,13 +779,47 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
     const raycaster = new THREE.Raycaster();
     const target = new THREE.Vector3(0, .8, 0);
     const cameraState = { yaw: .7, pitch: .17, radius: 25, targetYaw: .7, targetPitch: .17, targetRadius: 25, targetPoint: target.clone(), dragging: false, moved: false, x: 0, y: 0, pinch: 0 };
-    let cleanupProgress = 0;
-    let previousCleanup = false;
     let lastStatsUpdate = 0;
     let lastNavigationUpdate = 0;
     let hovered = null;
+    let activeRegionIndex = 0;
+    let collection = null;
+    let collectionBurst = 0;
+    const collected = new Set();
     const pressedKeys = new Set();
     const navigation = { x: 0, y: 0, z: 0, yaw: 0, velocity: 0, verticalVelocity: 0 };
+    const clock = new THREE.Clock();
+
+    const getRegionIndex = (x, z) => {
+      let nearest = 0;
+      let bestDistance = Infinity;
+      REGIONS.forEach((region, index) => {
+        const distance = Math.hypot(x - region.center[0], z - region.center[1]);
+        if (distance < bestDistance) { bestDistance = distance; nearest = index; }
+      });
+      return nearest;
+    };
+
+    const nearestPollution = (range = 12) => pollution.waste
+      .filter(mesh => mesh.visible && !mesh.userData.collected && !mesh.userData.collecting && mesh.userData.region === REGIONS[activeRegionIndex].id)
+      .map(mesh => ({ mesh, distance: mesh.position.distanceTo(sub.position) }))
+      .filter(item => item.distance <= range)
+      .sort((a, b) => a.distance - b.distance)[0]?.mesh || null;
+
+    const startCollection = mesh => {
+      if (!mesh || collection || mesh.userData.collected || mesh.userData.collecting) return false;
+      mesh.userData.collecting = true;
+      collectionBurst = 0;
+      collection = { mesh, started: clock.elapsedTime, from: mesh.position.clone(), scale: mesh.scale.clone() };
+      propsRef.current.onTarget?.({ category: 'pollution', collecting: true, ...mesh.userData });
+      playCollectionSound();
+      return true;
+    };
+
+    const setControl = (key, pressed) => {
+      if (pressed) pressedKeys.add(key);
+      else pressedKeys.delete(key);
+    };
 
     const setView = view => {
       const values = CAMERA_POSES[view] || CAMERA_POSES.free;
@@ -539,8 +840,9 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
       cameraState.targetRadius = lerp(from[2], to[2], smooth);
       cameraState.targetPoint.set(lerp(from[3], to[3], smooth), lerp(from[4], to[4], smooth), lerp(from[5], to[5], smooth));
     };
-    apiRef.current = { setView, setStoryProgress };
-    propsRef.current.onReady?.({ setView, setStoryProgress });
+    apiRef.current = { setView, setStoryProgress, setControl, collectNearest: () => startCollection(nearestPollution()) };
+    propsRef.current.onReady?.(apiRef.current);
+    propsRef.current.onRegion?.(REGIONS[0]);
 
     const projectPointer = event => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -577,7 +879,7 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
       cameraState.dragging = false;
       if (!cameraState.moved) {
         const hit = pick(event);
-        if (hit?.userData.kind === 'pollution') propsRef.current.onTarget?.({ category: 'pollution', ...hit.userData });
+        if (hit?.userData.kind === 'pollution') startCollection(hit);
         if (hit?.userData.kind === 'species') propsRef.current.onTarget?.({ category: 'species', ...hit.userData });
         if (hit?.userData.kind === 'sub') propsRef.current.onTarget?.({ category: 'sub', ...hit.userData });
       }
@@ -589,25 +891,37 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
       }
     };
     const onTouchStart = event => {
-      if (event.touches.length === 2) cameraState.pinch = Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY);
+      if (event.touches.length === 2) {
+        cameraState.dragging = false;
+        cameraState.pinch = Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY);
+      }
     };
     const onTouchMove = event => {
       if (event.touches.length === 2) {
+        if (propsRef.current.freeFlight) event.preventDefault();
         const distance = Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY);
         cameraState.targetRadius = clamp(cameraState.targetRadius - (distance - cameraState.pinch) * .025, 4.6, 47);
         cameraState.pinch = distance;
       }
     };
+    const onTouchEnd = () => { cameraState.pinch = 0; };
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointermove', onPointerMove);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
     renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
     renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
-    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true });
+    renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: false });
+    renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: true });
 
     const onKeyDown = event => {
       const key = event.key.toLowerCase();
-      if (!propsRef.current.freeFlight || !['w', 'a', 's', 'd', ' ', 'shift'].includes(key)) return;
+      if (!propsRef.current.freeFlight) return;
+      if (key === 'e') {
+        event.preventDefault();
+        startCollection(nearestPollution());
+        return;
+      }
+      if (!['w', 'a', 's', 'd', ' ', 'shift'].includes(key)) return;
       event.preventDefault();
       pressedKeys.add(key);
     };
@@ -618,7 +932,6 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
     window.addEventListener('blur', clearKeys);
 
     const dummy = new THREE.Object3D();
-    const clock = new THREE.Clock();
     let frame;
     const animate = () => {
       frame = requestAnimationFrame(animate);
@@ -635,13 +948,32 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
         navigation.yaw += steering * delta * 1.08;
         navigation.velocity = lerp(navigation.velocity, throttle * 5.4, .055);
         navigation.verticalVelocity = lerp(navigation.verticalVelocity, vertical * 2.8, .06);
-        navigation.x += -Math.cos(navigation.yaw) * navigation.velocity * delta;
-        navigation.z += Math.sin(navigation.yaw) * navigation.velocity * delta;
+        const nextX = navigation.x - Math.cos(navigation.yaw) * navigation.velocity * delta;
+        const nextZ = navigation.z + Math.sin(navigation.yaw) * navigation.velocity * delta;
+        const edgeDistance = Math.hypot(nextX, nextZ);
+        if (edgeDistance > WORLD_RADIUS) {
+          const redirect = Math.atan2(-navigation.z, navigation.x);
+          const turn = Math.atan2(Math.sin(redirect - navigation.yaw), Math.cos(redirect - navigation.yaw));
+          navigation.yaw += turn * delta * 1.65;
+          navigation.velocity *= .82;
+          navigation.x = nextX / edgeDistance * WORLD_RADIUS;
+          navigation.z = nextZ / edgeDistance * WORLD_RADIUS;
+        } else {
+          const edgeDamping = 1 - clamp((edgeDistance - (WORLD_RADIUS - 8)) / 8) * .55;
+          navigation.x = navigation.x + (nextX - navigation.x) * edgeDamping;
+          navigation.z = navigation.z + (nextZ - navigation.z) * edgeDamping;
+        }
         navigation.y = clamp(navigation.y + navigation.verticalVelocity * delta, -3.8, 8.5);
         cameraState.targetPoint.set(navigation.x, navigation.y + .8, navigation.z);
       } else {
         navigation.velocity = lerp(navigation.velocity, 0, .08);
         navigation.verticalVelocity = lerp(navigation.verticalVelocity, 0, .08);
+      }
+
+      const nextRegionIndex = getRegionIndex(navigation.x, navigation.z);
+      if (nextRegionIndex !== activeRegionIndex) {
+        activeRegionIndex = nextRegionIndex;
+        propsRef.current.onRegion?.(REGIONS[activeRegionIndex]);
       }
 
       cameraState.yaw = lerp(cameraState.yaw, cameraState.targetYaw, .045);
@@ -676,14 +1008,47 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
       manta.rotation.y = Math.PI + Math.sin(t * .18) * .15;
       manta.rotation.z = Math.sin(t * .9) * .08;
 
+      fauna.creatures.forEach((creature, index) => {
+        const data = creature.userData;
+        const angle = t * data.speed * .11 + data.phase;
+        const wobble = Math.sin(t * data.speed * .27 + data.phase * 1.7) * 2.2;
+        const region = data.region;
+        const targetX = region.center[0] + Math.cos(angle) * data.radius + Math.sin(angle * 2.3) * 2.1;
+        const targetZ = region.center[1] + Math.sin(angle * .91) * data.radius + wobble;
+        const previousX = creature.position.x;
+        const previousZ = creature.position.z;
+        creature.position.x = lerp(creature.position.x, targetX, .018 + data.speed * .006);
+        creature.position.z = lerp(creature.position.z, targetZ, .018 + data.speed * .006);
+        creature.position.y = data.baseY + Math.sin(t * data.speed * .38 + data.phase) * (data.variant === 'octopus' ? .12 : .72);
+        const dx = creature.position.x - previousX;
+        const dz = creature.position.z - previousZ;
+        if (Math.abs(dx) + Math.abs(dz) > .0001) creature.rotation.y = Math.atan2(dz, -dx);
+        creature.rotation.z = Math.sin(t * data.speed + data.phase) * (data.variant === 'ray' ? .13 : .035);
+        const subDistance = creature.position.distanceTo(sub.position);
+        if (subDistance < (data.variant === 'turtle' ? 4 : 6)) {
+          const escape = creature.position.clone().sub(sub.position).normalize().multiplyScalar((6 - subDistance) * .035);
+          creature.position.add(escape);
+        }
+        if (data.variant === 'octopus' || data.variant === 'squid') {
+          creature.children.slice(1).forEach((tentacle, arm) => { tentacle.rotation.z += Math.sin(t * 1.1 + arm) * .0025; });
+        }
+      });
+
       for (let i = 0; i < fish.count; i++) {
         const speed = .42 + seeded(i, 82) * .58;
-        const loop = ((t * speed + seeded(i, 83) * 65) % 54) - 27;
-        const school = i % 3;
-        const x = school === 0 ? loop : school === 1 ? -loop * .8 : loop * .66;
-        const z = (school - 1) * 11 + Math.sin(t * .22 + i * .7) * (4 + seeded(i, 84) * 5);
+        const loop = ((t * speed + seeded(i, 83) * 44) % 34) - 17;
+        const school = i % 4;
+        const schoolRegion = [REGIONS[0], REGIONS[1], REGIONS[4], REGIONS[6]][school];
+        let x = schoolRegion.center[0] + (school % 2 ? -loop * .72 : loop * .72);
+        let z = schoolRegion.center[1] + Math.sin(t * .22 + i * .7) * (2.5 + seeded(i, 84) * 3.8);
         const y = -1 + seeded(i, 85) * 10 + Math.sin(t * .8 + i) * .45;
         const direction = school === 1 ? -1 : 1;
+        const subDistance = Math.hypot(x - sub.position.x, z - sub.position.z);
+        if (subDistance < 5) {
+          const scatter = (5 - subDistance) * .75;
+          x += (x - sub.position.x) / Math.max(subDistance, .2) * scatter;
+          z += (z - sub.position.z) / Math.max(subDistance, .2) * scatter;
+        }
         dummy.position.set(x, y, z);
         dummy.scale.set(.34 + seeded(i, 86) * .55, .13 + seeded(i, 87) * .17, .14 + seeded(i, 88) * .2);
         dummy.rotation.set(0, direction > 0 ? -Math.PI / 2 : Math.PI / 2, Math.sin(t + i) * .03);
@@ -697,7 +1062,9 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
       fish.tails.instanceMatrix.needsUpdate = true;
 
       world.grass.children.forEach(blade => { blade.rotation.z = Math.sin(t * .7 + blade.userData.phase) * .11; });
+      world.kelp.children.forEach(blade => { blade.rotation.z = Math.sin(t * .42 + blade.userData.phase) * .16; });
       world.bioMat.emissiveIntensity = 1.6 + Math.sin(t * 1.4) * .7;
+      world.crystalMat.emissiveIntensity = 1.25 + Math.sin(t * .72) * .48;
       const sediment = particles.points.geometry.attributes.position;
       for (let i = 0; i < sediment.count; i++) {
         let x = sediment.getX(i) + particles.speeds[i] * .014;
@@ -714,50 +1081,94 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
       bubbles.needsUpdate = true;
 
       const scanOn = currentMode === 'sonar' || currentMode === 'ai' || isCleanup;
+      const activeRegion = REGIONS[activeRegionIndex];
       sonar.visible = scanOn;
+      sonar.position.copy(sub.position);
       sonar.children.forEach(ring => {
         const life = (t * .22 + ring.userData.offset) % 1;
         ring.scale.setScalar(1 + life * 28);
         ring.material.opacity = (1 - life) * .28;
       });
       pollution.waste.forEach((mesh, i) => {
-        const highlight = scanOn;
-        if (mesh.material.emissive) mesh.material.emissiveIntensity = highlight ? 2.6 + Math.sin(t * 3 + i) * .7 : .32;
+        const highlight = scanOn && mesh.visible && !mesh.userData.collected && mesh.userData.region === activeRegion.id && mesh.position.distanceTo(sub.position) < 28;
+        mesh.userData.detected = highlight;
+        if (mesh.material.emissive) mesh.material.emissiveIntensity = highlight ? 2.6 + Math.sin(t * 3 + i) * .7 : .18;
       });
 
-      if (isCleanup && !previousCleanup && cleanupProgress >= .995) cleanupProgress = 0;
-      if (isCleanup) cleanupProgress = clamp(cleanupProgress + delta / 28);
-      previousCleanup = isCleanup;
-      const progress = cleanupProgress;
-      pollution.waste.forEach((mesh, i) => {
-        const threshold = (i + 1) / pollution.waste.length;
-        const local = clamp(progress * pollution.waste.length - i);
-        mesh.scale.setScalar(Math.max(.001, 1 - local * 1.2));
-        mesh.visible = local < .98;
+      if (collection) {
+        const local = clamp((t - collection.started) / 1.65);
+        const eased = local * local * (3 - 2 * local);
+        const armReach = Math.sin(clamp(local * 1.18) * Math.PI);
+        const destination = sub.localToWorld(new THREE.Vector3(-1.1, -.55, 0));
+        collection.mesh.position.lerpVectors(collection.from, destination, eased);
+        collection.mesh.rotation.x += delta * 2.8;
+        collection.mesh.rotation.y += delta * 1.7;
+        const shrink = 1 - clamp((local - .68) / .3) * .94;
+        collection.mesh.scale.copy(collection.scale).multiplyScalar(shrink);
+        sub.userData.arms.rotation.z = -.5 * armReach + Math.sin(t * 1.4) * .025;
+        sub.userData.arms.scale.set(1 + armReach * .42, 1 + armReach * .42, 1 + armReach * .42);
+        sub.userData.bayDoor.rotation.x = -Math.PI / 2 + armReach * .82;
+
+        if (local > .66 && !collectionBurst) {
+          collectionBurst = t;
+          pollution.collectionParticles.forEach((mote, index) => {
+            mote.visible = true;
+            mote.position.copy(destination);
+            mote.userData.velocity.set((seeded(index, 221) - .5) * 2.4, .3 + seeded(index, 222) * 1.8, (seeded(index, 223) - .5) * 2.4);
+          });
+        }
+
+        if (local >= 1) {
+          const item = collection.mesh.userData;
+          item.collecting = false; item.collected = true;
+          collection.mesh.visible = false;
+          collected.add(item.index);
+          propsRef.current.onNotification?.(`${item.label} Collected`);
+          propsRef.current.onTarget?.(null);
+          collection = null;
+          collectionBurst = t;
+        }
+      } else {
+        sub.userData.arms.scale.lerp(new THREE.Vector3(1, 1, 1), .08);
+        sub.userData.bayDoor.rotation.x = lerp(sub.userData.bayDoor.rotation.x, -Math.PI / 2, .08);
+      }
+
+      pollution.collectionParticles.forEach(mote => {
+        if (!mote.visible) return;
+        mote.position.addScaledVector(mote.userData.velocity, delta);
+        mote.userData.velocity.y -= delta * .55;
+        if (t - collectionBurst > .72) mote.visible = false;
       });
+
       pollution.drones.forEach((drone, i) => {
-        drone.visible = isCleanup && progress < 1;
+        drone.visible = isCleanup;
         if (!drone.visible) return;
-        const targetIndex = Math.min(pollution.waste.length - 1, Math.floor(progress * pollution.waste.length));
-        const destination = pollution.waste[targetIndex].position;
-        const phase = (progress * pollution.waste.length) % 1;
-        const trip = Math.sin(phase * Math.PI);
+        const angle = t * (.42 + i * .05) + i * TAU / 3;
         drone.position.set(
-          lerp(1 + i * .3, destination.x, trip) + Math.sin(t * 2 + i) * .45,
-          lerp(2.5, destination.y + 1, trip) + Math.cos(t * 2.4 + i) * .2,
-          lerp(-1 + i, destination.z, trip) + Math.sin(t * 1.4 + i) * .35
+          sub.position.x + Math.cos(angle) * (4 + i * .6),
+          sub.position.y + 1.5 + Math.sin(t * .9 + i) * .45,
+          sub.position.z + Math.sin(angle) * (4 + i * .6)
         );
-        drone.lookAt(destination);
+        drone.lookAt(sub.position);
       });
 
       if (t - lastStatsUpdate > .12) {
         lastStatsUpdate = t;
+        const collectedItems = POLLUTION.filter((item, index) => collected.has(index));
+        const removed = collectedItems.reduce((total, item) => total + item.weight, 0);
+        const plastic = collectedItems.reduce((total, item) => total + item.plastic, 0);
+        const progress = collected.size / POLLUTION.length;
+        const regionRemaining = pollution.waste.filter(mesh => mesh.userData.region === activeRegion.id && !mesh.userData.collected).length;
         propsRef.current.onStats?.({
           progress: Math.round(progress * 100),
-          health: Math.round(62 + progress * 35),
-          removed: (progress * 160).toFixed(1),
-          protected: 12 + Math.floor(progress * 32),
-          clarity: Math.round(71 + progress * 26)
+          health: Math.round(62 + progress * 36),
+          removed: removed.toFixed(1),
+          plastic: plastic.toFixed(1),
+          collected: collected.size,
+          remaining: POLLUTION.length - collected.size,
+          regionRemaining,
+          protected: 12 + collected.size * 2,
+          clarity: Math.round(71 + progress * 27)
         });
       }
 
@@ -771,12 +1182,13 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
         });
       }
 
-      const targetBg = currentMode === 'night' ? 0x01070c : currentMode === 'sonar' ? 0x001821 : currentMode === 'ai' ? 0x031524 : 0x031b22;
-      const targetFog = currentMode === 'night' ? 0x021015 : currentMode === 'sonar' ? 0x00222b : currentMode === 'ai' ? 0x07182a : 0x052a31;
+      const targetBg = currentMode === 'night' ? 0x01070c : currentMode === 'sonar' ? 0x001821 : currentMode === 'ai' ? 0x031524 : activeRegion.bg;
+      const targetFog = currentMode === 'night' ? 0x021015 : currentMode === 'sonar' ? 0x00222b : currentMode === 'ai' ? 0x07182a : activeRegion.fog;
       scene.background.lerp(new THREE.Color(targetBg), .03);
       scene.fog.color.lerp(new THREE.Color(targetFog), .03);
-      scene.fog.density = lerp(scene.fog.density, .024 - progress * .008 + (currentMode === 'night' ? .016 : 0), .025);
-      renderer.toneMappingExposure = lerp(renderer.toneMappingExposure, currentMode === 'night' ? .62 : currentMode === 'sonar' ? .78 : 1.12 + progress * .16, .03);
+      scene.fog.density = lerp(scene.fog.density, activeRegion.density + (currentMode === 'night' ? .014 : 0), .025);
+      renderer.toneMappingExposure = lerp(renderer.toneMappingExposure, currentMode === 'night' ? .62 : currentMode === 'sonar' ? .78 : activeRegion.id === 'trench' ? .83 : 1.12, .03);
+      hemi.color.lerp(new THREE.Color(activeRegion.accent), .018);
       hemi.intensity = lerp(hemi.intensity, currentMode === 'night' ? .38 : 1.38, .03);
 
       renderer.render(scene, camera);
@@ -787,7 +1199,7 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
       const width = mount.clientWidth;
       const height = mount.clientHeight;
       camera.aspect = width / height; camera.updateProjectionMatrix();
-      renderer.setSize(width, height); renderer.setPixelRatio(Math.min(window.devicePixelRatio, width < 700 ? 1.25 : 1.75));
+      renderer.setSize(width, height); renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower || width < 700 ? 1 : 1.65));
     };
     window.addEventListener('resize', resize);
 
@@ -800,6 +1212,7 @@ function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, on
       renderer.domElement.removeEventListener('wheel', onWheel);
       renderer.domElement.removeEventListener('touchstart', onTouchStart);
       renderer.domElement.removeEventListener('touchmove', onTouchMove);
+      renderer.domElement.removeEventListener('touchend', onTouchEnd);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', clearKeys);
@@ -822,13 +1235,14 @@ function ModeGlyph({ mode }) {
 
 function TargetCard({ target, onClose }) {
   if (!target) return null;
+  const weightLabel = typeof target.weight === 'number' ? `${target.weight.toFixed(1)} KG` : target.weight;
   return html`
     <aside className=${`target-card target-card--${target.category}`}>
       <div className="target-card__line"><span>${target.category === 'pollution' ? 'AI OBJECT LOCK' : target.category === 'species' ? 'BIOLOGICAL CONTACT' : 'SYSTEM INSPECTION'}</span><button onClick=${onClose} aria-label="Close target details">×</button></div>
       <h2>${target.type}</h2>
       <p className="target-card__meta">${target.meta || target.method}</p>
-      <p>${target.detail || `${target.risk} RISK · ${target.weight}`}</p>
-      ${target.category === 'pollution' && html`<div className="risk-line"><span>RISK ${target.risk}</span><b>${target.weight}</b></div>`}
+      <p>${target.collecting ? 'MANIPULATOR LOCKED · STORAGE BAY OPENING' : target.detail || `${target.risk} RISK · ${weightLabel}`}</p>
+      ${target.category === 'pollution' && html`<div className=${target.collecting ? 'risk-line is-collecting' : 'risk-line'}><span>${target.collecting ? 'AUTO RETRIEVAL' : `RISK ${target.risk}`}</span><b>${target.collecting ? 'IN PROGRESS' : weightLabel}</b></div>`}
     </aside>
   `;
 }
@@ -1009,24 +1423,25 @@ function StoryExperience({ activeChapter, onChapterSelect }) {
   `;
 }
 
-function CleanupPanel({ active, stats, liveScan, onToggle }) {
+function CleanupPanel({ active, stats, liveScan, region, onToggle }) {
   return html`
     <section className="mission-panel" aria-label="AI ocean cleanup telemetry">
-      <div className="mission-panel__top"><span><i></i>AI RESTORATION FEED</span><b>${active ? 'ACTIVE' : 'STANDBY'}</b></div>
+      <div className="mission-panel__top"><span><i></i>AI REGIONAL SCAN</span><b>${active ? 'ACTIVE' : 'STANDBY'}</b></div>
       <div className="mission-panel__body">
         <div className="scan-ticker">
-          <span>${active ? `TRACKING ${liveScan.target}` : 'AWAITING DEPLOYMENT'}</span>
-          <b>${active ? `${liveScan.confidence}% CONF.` : 'READY'}</b>
+          <span>${active ? `TRACKING ${liveScan.target}` : region.label}</span>
+          <b>${active ? `${liveScan.confidence}% CONF.` : region.code}</b>
         </div>
         <div className="mission-progress">
-          <span>MISSION ${String(stats.progress).padStart(2, '0')}% · VERIFIED RECOVERY MODEL</span>
+          <span>MISSION ${String(stats.progress).padStart(2, '0')}% · ${stats.collected}/${stats.collected + stats.remaining} OBJECTS RECOVERED</span>
           <i><b style=${{ width: `${stats.progress}%` }}></b></i>
         </div>
         <dl>
-          <div><dt>DEBRIS RECOVERED</dt><dd>${stats.removed}<small>KG</small></dd></div>
-          <div><dt>FAUNA PROTECTED</dt><dd>${stats.protected}<small>EST.</small></dd></div>
-          <div><dt>WATER CLARITY</dt><dd>${stats.clarity}<small>%</small></dd></div>
+          <div><dt>TRASH COLLECTED</dt><dd>${stats.collected}<small>ITEMS</small></dd></div>
+          <div><dt>OCEAN HEALTH</dt><dd>${stats.health}<small>%</small></dd></div>
+          <div><dt>PLASTIC REMOVED</dt><dd>${stats.plastic}<small>KG</small></dd></div>
         </dl>
+        <div className="cleanup-balance"><span><i>POLLUTION REMAINING</i><b>${stats.remaining}</b></span><span><i>REGION CONTACTS</i><b>${stats.regionRemaining}</b></span><span><i>TOTAL MASS</i><b>${stats.removed} KG</b></span></div>
         <div className="live-scan-row" aria-live="polite">
           <span><i>FLOW</i><b>${liveScan.flow} M/S</b></span>
           <span><i>DRONE</i><b>${liveScan.drone}</b></span>
@@ -1034,7 +1449,7 @@ function CleanupPanel({ active, stats, liveScan, onToggle }) {
         </div>
         <button className=${active ? 'cleanup-button active' : 'cleanup-button'} onClick=${onToggle} aria-pressed=${active}>
           <span className="cleanup-icon"><i></i><b></b></span>
-          <span><strong>${active ? stats.progress === 100 ? 'RESTORATION COMPLETE' : 'PAUSE AUTONOMOUS MISSION' : stats.progress > 0 ? 'RESUME CLEANUP MISSION' : 'INITIATE CLEANUP'}</strong><small>${active ? 'LIVE SENSOR VALUES UPDATING' : 'C · AI GUIDED RESTORATION'}</small></span>
+          <span><strong>${active ? 'END REGIONAL SCAN' : 'SCAN CURRENT REGION'}</strong><small>${active ? `${region.label} · NEARBY CONTACTS ONLY` : 'C · AI LOCAL DETECTION'}</small></span>
           <i className="cleanup-arrow">↗</i>
         </button>
       </div>
@@ -1042,7 +1457,7 @@ function CleanupPanel({ active, stats, liveScan, onToggle }) {
   `;
 }
 
-function CockpitPanel({ mode, cleanupActive, stats, liveScan, onMode, onCleanup, onExit }) {
+function CockpitPanel({ mode, cleanupActive, stats, liveScan, region, onMode, onCleanup, onExit }) {
   const buttons = [['SONAR', 'sonar'], ['LIGHTS', 'normal'], ['LOW', 'night'], ['AI', 'ai']];
   return html`
     <section className="cockpit-shell" aria-label="Interactive Nereid cockpit controls">
@@ -1050,7 +1465,7 @@ function CockpitPanel({ mode, cleanupActive, stats, liveScan, onMode, onCleanup,
       <div className="cockpit-screen cockpit-screen--sonar">
         <div className="screen-title"><span>SPATIAL SONAR</span><b>LIVE</b></div>
         <div className="sonar-scope"><i></i><b></b><span></span><em></em></div>
-        <div className="screen-readout"><span>CONTACTS <b>096</b></span><span>RANGE <b>2.4 KM</b></span></div>
+        <div className="screen-readout"><span>CONTACTS <b>${String(stats.regionRemaining).padStart(3, '0')}</b></span><span>REGION <b>${region.code}</b></span></div>
       </div>
       <div className="cockpit-screen cockpit-screen--systems">
         <div className="screen-title"><span>VESSEL SYSTEMS</span><b>NOMINAL</b></div>
@@ -1067,12 +1482,12 @@ function CockpitPanel({ mode, cleanupActive, stats, liveScan, onMode, onCleanup,
           ${buttons.map(([label, id]) => html`
             <button key=${id} className=${mode === id ? 'active' : ''} onClick=${() => onMode(id)} aria-pressed=${mode === id}><i><b></b></i><span>${label}</span></button>
           `)}
-          <button className=${cleanupActive ? 'active is-amber' : 'is-amber'} onClick=${onCleanup} aria-pressed=${cleanupActive}><i><b></b></i><span>CLEAN</span></button>
+          <button className=${cleanupActive ? 'active is-amber' : 'is-amber'} onClick=${onCleanup} aria-pressed=${cleanupActive}><i><b></b></i><span>SCAN</span></button>
           <button onClick=${onExit}><i><b></b></i><span>EXIT</span></button>
         </div>
         <div className="console-center-screen">
           <span>NEREID / FLIGHT COMPUTER</span>
-          <strong>${cleanupActive ? `RESTORE ${String(stats.progress).padStart(2, '0')}%` : 'HOLDING 7,842 M'}</strong>
+          <strong>${cleanupActive ? `SCANNING ${region.label.toUpperCase()}` : 'HOLDING 7,842 M'}</strong>
           <small>${cleanupActive ? `${liveScan.target} · ${liveScan.drone}` : 'AUTONOMOUS STATION KEEPING'}</small>
         </div>
         <div className="console-grip console-grip--right" aria-hidden="true"></div>
@@ -1081,19 +1496,51 @@ function CockpitPanel({ mode, cleanupActive, stats, liveScan, onMode, onCleanup,
   `;
 }
 
-function FreeFlightHUD({ navigation }) {
+function FreeFlightHUD({ navigation, region }) {
   return html`
     <aside className="free-flight-hud" aria-label="Free exploration controls">
-      <div className="free-flight-hud__status"><i></i><span>MANUAL CONTROL</span><b>ENGAGED</b></div>
+      <div className="free-flight-hud__status"><i></i><span>${region.code} · ${region.label}</span><b>ENGAGED</b></div>
       <div className="flight-metrics">
         <span><i>SPEED</i><b>${navigation.speed}</b><em>KN</em></span>
         <span><i>HEADING</i><b>${navigation.heading}</b><em>°</em></span>
         <span><i>DEPTH</i><b>${navigation.depth}</b><em>M</em></span>
       </div>
-      <div className="flight-controls"><kbd>W</kbd><kbd>S</kbd><span>THRUST</span><kbd>A</kbd><kbd>D</kbd><span>STEER</span><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>DEPTH</span></div>
+      <div className="flight-controls"><kbd>W</kbd><kbd>S</kbd><span>THRUST</span><kbd>A</kbd><kbd>D</kbd><span>STEER</span><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>DEPTH</span><kbd>E</kbd><span>COLLECT</span></div>
       <p>Drag to orbit · Alt + scroll to zoom · Scroll up to revisit the expedition</p>
     </aside>
   `;
+}
+
+function RegionPanel({ region, stats, scanActive }) {
+  return html`
+    <aside className="region-panel" aria-live="polite">
+      <span><i></i>${region.code}</span>
+      <strong>${region.label}</strong>
+      <p>${region.ambience}</p>
+      <div><b>${scanActive ? `${stats.regionRemaining} LOCAL CONTACTS` : 'SCAN TO IDENTIFY DEBRIS'}</b><em>${Math.max(0, WORLD_RADIUS - 8)} MAPPED NM</em></div>
+    </aside>
+  `;
+}
+
+function MobilePilotControls({ onControl, onCollect }) {
+  const bind = key => ({
+    onPointerDown: event => { event.preventDefault(); onControl(key, true); },
+    onPointerUp: event => { event.preventDefault(); onControl(key, false); },
+    onPointerCancel: () => onControl(key, false),
+    onPointerLeave: () => onControl(key, false)
+  });
+  return html`
+    <section className="mobile-pilot" aria-label="Touch submarine controls">
+      <div className="mobile-pilot__steer"><button ...${bind('a')} aria-label="Steer left">A</button><button ...${bind('d')} aria-label="Steer right">D</button></div>
+      <div className="mobile-pilot__actions"><button onClick=${onCollect} className="collect-touch">COLLECT <b>E</b></button><button ...${bind(' ')} aria-label="Ascend">UP</button><button ...${bind('shift')} aria-label="Descend">DN</button></div>
+      <div className="mobile-pilot__thrust"><button ...${bind('w')} aria-label="Move forward">W</button><button ...${bind('s')} aria-label="Move backward">S</button></div>
+    </section>
+  `;
+}
+
+function CollectionToast({ message }) {
+  if (!message) return null;
+  return html`<div className="collection-toast" role="status"><i></i><span><b>RECOVERY CONFIRMED</b>${message}</span><em>+ OCEAN HEALTH</em></div>`;
 }
 
 function AboutPage({ onBack }) {
@@ -1108,10 +1555,10 @@ function AboutPage({ onBack }) {
       </div>
       <article className="creator-profile">
         <div className="creator-profile__top"><span>CREATOR FILE</span><b>01 / 01</b></div>
-        <div className="creator-monogram">MAK<i></i></div>
+        <div className="creator-monogram">SK<i></i></div>
         <p className="creator-role">CREATOR · DESIGNER · DEVELOPER</p>
-        <h2>Mohammad Ali Khan</h2>
-        <p>Mohammad is a high school student from the Bay Area, California. He is creating Project ABYSS for a hackathon as an exploration of how technology, storytelling, and environmental responsibility can share the same world.</p>
+        <h2>Shabbur Khan</h2>
+        <p>Shabbur is a high school student from the Bay Area, California. He is creating Project ABYSS for a hackathon as an exploration of how technology, storytelling, and environmental responsibility can share the same world.</p>
         <dl>
           <div><dt>BASED IN</dt><dd>BAY AREA, CA</dd></div>
           <div><dt>PROJECT TYPE</dt><dd>3D HACKATHON</dd></div>
@@ -1133,9 +1580,11 @@ function App() {
   const [target, setTarget] = useState(null);
   const [activeChapter, setActiveChapter] = useState(0);
   const [storyProgress, setStoryProgress] = useState(0);
-  const [stats, setStats] = useState({ progress: 0, health: 62, removed: '0.0', protected: 12, clarity: 71 });
+  const [stats, setStats] = useState({ progress: 0, health: 62, removed: '0.0', plastic: '0.0', collected: 0, remaining: POLLUTION.length, regionRemaining: 2, protected: 12, clarity: 71 });
   const [navigation, setNavigation] = useState({ speed: '0.0', heading: '270', depth: 7842 });
   const [liveScan, setLiveScan] = useState({ target: 'GHOST NET', confidence: '99.2', flow: '0.24', drone: 'NRD-01', particles: 284 });
+  const [region, setRegion] = useState(REGIONS[0]);
+  const [notification, setNotification] = useState('');
   const sceneApi = useRef(null);
   const progressRef = useRef(0);
   const freeFlight = route === 'experience' && storyProgress > STORY_CHAPTERS.length - 1.12;
@@ -1149,7 +1598,7 @@ function App() {
 
   useEffect(() => {
     document.body.classList.toggle('is-about-route', route === 'about');
-    document.title = route === 'about' ? 'About Project ABYSS — Mohammad Ali Khan' : 'ABYSS — Interactive Deep Ocean Expedition';
+    document.title = route === 'about' ? 'About Project ABYSS — Shabbur Khan' : 'ABYSS — Interactive Deep Ocean Expedition';
     if (route === 'about') {
       window.scrollTo({ top: 0, behavior: 'auto' });
       sceneApi.current?.setView('side');
@@ -1194,11 +1643,10 @@ function App() {
   useEffect(() => {
     if (!cleanupActive) return undefined;
     let timer;
-    const targets = ['GHOST NET', 'POLYMER', 'MICROPLASTIC', 'METAL-04', 'RUBBER'];
     const drones = ['NRD-01', 'NRD-02', 'NRD-03'];
     const tick = () => {
       setLiveScan({
-        target: targets[Math.floor(Math.random() * targets.length)],
+        target: region.pollution[Math.floor(Math.random() * region.pollution.length)],
         confidence: (96.8 + Math.random() * 3.1).toFixed(1),
         flow: (.16 + Math.random() * .23).toFixed(2),
         drone: drones[Math.floor(Math.random() * drones.length)],
@@ -1208,7 +1656,13 @@ function App() {
     };
     tick();
     return () => window.clearTimeout(timer);
-  }, [cleanupActive]);
+  }, [cleanupActive, region.id]);
+
+  useEffect(() => {
+    if (!notification) return undefined;
+    const timer = window.setTimeout(() => setNotification(''), 3200);
+    return () => window.clearTimeout(timer);
+  }, [notification]);
 
   useEffect(() => {
     const onKey = event => {
@@ -1227,7 +1681,7 @@ function App() {
     if (window.location.pathname !== path) window.history.pushState({}, '', path);
     setRoute(nextRoute);
     if (nextRoute === 'experience') {
-      window.scrollTo({ top: 0, behavior: route === 'experience' ? 'smooth' : 'instant' });
+      window.scrollTo({ top: 0, behavior: route === 'experience' ? 'smooth' : 'auto' });
       progressRef.current = 0;
       setStoryProgress(0);
       setActiveChapter(0);
@@ -1257,6 +1711,8 @@ function App() {
         onStats=${setStats}
         onNavigation=${setNavigation}
         onTarget=${setTarget}
+        onRegion=${setRegion}
+        onNotification=${setNotification}
         onReady=${api => { sceneApi.current = api; api.setStoryProgress(progressRef.current); }}
       />
 
@@ -1322,15 +1778,18 @@ function App() {
           </div>
         </section>
 
-        <${CleanupPanel} active=${cleanupActive} stats=${stats} liveScan=${liveScan} onToggle=${toggleCleanup}/>
-        ${cockpitVisible && html`<${CockpitPanel} mode=${mode} cleanupActive=${cleanupActive} stats=${stats} liveScan=${liveScan} onMode=${setMode} onCleanup=${toggleCleanup} onExit=${() => selectView('free')}/>`}
-        ${freeFlight && html`<${FreeFlightHUD} navigation=${navigation}/>`}
+        <${CleanupPanel} active=${cleanupActive} stats=${stats} liveScan=${liveScan} region=${region} onToggle=${toggleCleanup}/>
+        ${cockpitVisible && html`<${CockpitPanel} mode=${mode} cleanupActive=${cleanupActive} stats=${stats} liveScan=${liveScan} region=${region} onMode=${setMode} onCleanup=${toggleCleanup} onExit=${() => selectView('free')}/>`}
+        ${freeFlight && html`<${RegionPanel} region=${region} stats=${stats} scanActive=${cleanupActive}/>`}
+        ${freeFlight && html`<${FreeFlightHUD} navigation=${navigation} region=${region}/>`}
+        ${freeFlight && html`<${MobilePilotControls} onControl=${(key, pressed) => sceneApi.current?.setControl(key, pressed)} onCollect=${() => sceneApi.current?.collectNearest()}/>`}
+        <${CollectionToast} message=${notification}/>
         <${TargetCard} target=${target} onClose=${() => setTarget(null)}/>
       ` : html`<${AboutPage} onBack=${event => navigate('experience', event)}/>`}
 
       <footer className="status-footer">
         <span><i className="status-dot"></i>${freeFlight ? 'MANUAL NAVIGATION ACTIVE' : 'ALL SYSTEMS NOMINAL'}</span>
-        <span className="footer-center">AUS NEREID <i></i> ${route === 'about' ? 'PROJECT ORIGIN LOG' : 'AUTONOMOUS SUBMERSIBLE'}</span>
+        <span className="footer-center">AUS NEREID <i></i> ${route === 'about' ? 'PROJECT ORIGIN LOG' : freeFlight ? region.label.toUpperCase() : 'AUTONOMOUS SUBMERSIBLE'}</span>
         <span>LOCAL TIME <b>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</b></span>
       </footer>
     </main>
