@@ -1304,7 +1304,10 @@ body.is-about-route { overflow: hidden; }
 .cockpit-visible .chapter-dots,
 .cockpit-visible .telemetry,
 .cockpit-visible .view-rail,
-.cockpit-visible .mode-dock { opacity: 0 !important; pointer-events: none; }
+.cockpit-visible .mode-dock,
+.cockpit-visible .free-flight-hud,
+.cockpit-visible .region-panel,
+.cockpit-visible .mobile-pilot { opacity: 0 !important; pointer-events: none; }
 
 /* Free flight */
 
@@ -1460,6 +1463,31 @@ body.is-about-route { overflow: hidden; }
 
 .mobile-pilot { display: none; }
 
+.skip-explore {
+  position: fixed;
+  z-index: 19;
+  right: 34px;
+  bottom: 42px;
+  min-width: 152px;
+  height: 39px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 13px;
+  border: 1px solid rgba(108, 242, 232, .23);
+  background: rgba(2, 20, 25, .66);
+  color: #8fb6b0;
+  font: 400 6px var(--mono);
+  letter-spacing: .13em;
+  backdrop-filter: blur(10px);
+  transition: color .25s, border-color .25s, background .25s, opacity .35s;
+}
+.skip-explore i { color: var(--cyan); font-size: 12px; font-style: normal; }
+.skip-explore:hover { color: #dcf9f5; border-color: rgba(108, 242, 232, .46); background: rgba(42, 222, 209, .07); }
+.free-flight .skip-explore { opacity: 0; pointer-events: none; }
+.exploration-interface { position: relative; z-index: 16; }
+
 @keyframes collection-toast-in {
   0% { opacity: 0; transform: translate(-50%, -12px); }
   12%, 80% { opacity: 1; transform: translate(-50%, 0); }
@@ -1599,6 +1627,7 @@ body.is-about-route { overflow: hidden; }
   .story-chapter__copy { max-height: calc(100vh - 205px); overflow: auto; overscroll-behavior: contain; }
   .cockpit-screen { max-width: 44vw; }
   .console-controls button { min-width: 40px; min-height: 48px; }
+  .skip-explore { right: 10px; bottom: 38px; min-width: 132px; height: 42px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
