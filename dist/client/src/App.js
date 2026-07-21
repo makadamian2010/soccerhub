@@ -12,7 +12,71 @@ const VIEWS = [
   { id: 'side', label: 'Port profile', key: '03' },
   { id: 'top', label: 'Overhead', key: '04' },
   { id: 'dome', label: 'Observation dome', key: '05' },
-  { id: 'engines', label: 'Thruster array', key: '06' }
+  { id: 'cockpit', label: 'Cockpit', key: '06' },
+  { id: 'engines', label: 'Thruster array', key: '07' }
+];
+
+const CAMERA_POSES = {
+  free: [.7, .17, 25, 0, .8, 0],
+  front: [-Math.PI / 2, .03, 19, -1.1, .8, 0],
+  side: [0, .04, 21, .3, .8, 0],
+  top: [.15, 1.18, 21, .2, .2, 0],
+  dome: [-1.72, .08, 7.2, -3.25, 1.55, 0],
+  sonar: [-.38, .55, 11.5, .75, 2.15, 0],
+  arms: [-1.02, -.28, 10.4, -1.65, -.65, .2],
+  cockpit: [-1.7, .025, 4.75, -3.32, 1.45, 0],
+  engines: [1.38, .02, 8.3, 5.45, 1.1, 0]
+};
+
+const STORY_CHAPTERS = [
+  {
+    id: 'arrival', number: '01', pose: 'free', view: 'free', align: 'left',
+    kicker: 'THE HADAL EXPEDITION', title: 'Meet the AUS Nereid.',
+    body: 'A next-generation autonomous research platform engineered to explore Earth’s least understood frontier—and repair what it finds.',
+    facts: [['RATED DEPTH', '11,200 M'], ['MISSION ENDURANCE', '42 DAYS'], ['CREW', '0 + AI']]
+  },
+  {
+    id: 'observatory', number: '02', pose: 'dome', view: 'dome', align: 'right',
+    kicker: 'PRESSURE GLASS', title: 'A window into the impossible.',
+    body: 'A layered aluminosilicate observation dome distributes nearly eighty megapascals of pressure while preserving optical clarity.',
+    facts: [['GLASS LAYERS', '09'], ['OPTICAL CLARITY', '99.7%'], ['LIVE PRESSURE', '78.4 MPA']]
+  },
+  {
+    id: 'hull', number: '03', pose: 'side', view: 'side', align: 'left',
+    kicker: 'TITANIUM–CARBON HULL', title: 'Strength without excess.',
+    body: 'A ribbed titanium pressure vessel, carbon-fiber fairings, ceramic panels, and isolated scientific pods create a hull built for silence.',
+    facts: [['HULL THICKNESS', '168 MM'], ['STRUCTURAL LOAD', 'NOMINAL'], ['ACOUSTIC PROFILE', '−42 DB']]
+  },
+  {
+    id: 'sonar', number: '04', pose: 'sonar', view: 'top', align: 'right',
+    kicker: 'MULTIMODAL PERCEPTION', title: 'It maps what light cannot reach.',
+    body: 'LiDAR, multibeam sonar, low-light optics, and AI classification combine into a live three-dimensional model of the trench.',
+    facts: [['SONAR RANGE', '2.4 KM'], ['MAP RESOLUTION', '2.8 MM'], ['CONTACTS', '96 LIVE']]
+  },
+  {
+    id: 'robotics', number: '05', pose: 'arms', view: 'front', align: 'left',
+    kicker: 'SCIENTIFIC ROBOTICS', title: 'Precision hands at crushing depth.',
+    body: 'Force-sensing manipulators collect fragile samples, cut ghost nets, and recover debris without touching coral or wildlife.',
+    facts: [['ARM ACCURACY', '0.4 MM'], ['FORCE LIMIT', 'ADAPTIVE'], ['TOOLS AVAILABLE', '18']]
+  },
+  {
+    id: 'propulsion', number: '06', pose: 'engines', view: 'engines', align: 'right',
+    kicker: 'VECTORED PROPULSION', title: 'Quiet power in every direction.',
+    body: 'Four independent rim-driven thrusters provide centimeter-level station keeping with almost no disturbance to the ecosystem.',
+    facts: [['THRUSTERS', '04'], ['CRUISE SPEED', '6.8 KN'], ['STATION ERROR', '< 2 CM']]
+  },
+  {
+    id: 'cockpit', number: '07', pose: 'cockpit', view: 'cockpit', align: 'left',
+    kicker: 'MISSION CONTROL', title: 'Every system, one command surface.',
+    body: 'The cockpit brings navigation, life support, mapping, cleanup drones, and ocean telemetry into one pressure-safe control environment.',
+    facts: [['AI CORE', 'ONLINE'], ['POWER RESERVE', '94%'], ['SYSTEMS', '27 / 27']]
+  },
+  {
+    id: 'open-world', number: '08', pose: 'free', view: 'free', align: 'center', freeFlight: true,
+    kicker: 'COMMAND TRANSFER', title: 'The ocean is yours.',
+    body: 'Guided expedition complete. Take command of the Nereid, chart your own route, and continue the restoration mission.',
+    facts: [['W / S', 'THRUST'], ['A / D', 'STEER'], ['SPACE / SHIFT', 'DEPTH']]
+  }
 ];
 
 const MODES = [
@@ -388,11 +452,11 @@ function createAudio() {
   return () => { window.clearInterval(interval); low.stop(); current.stop(); context.close(); };
 }
 
-function AbyssScene({ mode, cleanupActive, onStats, onTarget, onReady }) {
+function AbyssScene({ mode, cleanupActive, freeFlight, onStats, onNavigation, onTarget, onReady }) {
   const mountRef = useRef(null);
-  const propsRef = useRef({ mode, cleanupActive, onStats, onTarget, onReady });
+  const propsRef = useRef({ mode, cleanupActive, freeFlight, onStats, onNavigation, onTarget, onReady });
   const apiRef = useRef(null);
-  propsRef.current = { mode, cleanupActive, onStats, onTarget, onReady };
+  propsRef.current = { mode, cleanupActive, freeFlight, onStats, onNavigation, onTarget, onReady };
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -448,26 +512,35 @@ function AbyssScene({ mode, cleanupActive, onStats, onTarget, onReady }) {
     const raycaster = new THREE.Raycaster();
     const target = new THREE.Vector3(0, .8, 0);
     const cameraState = { yaw: .7, pitch: .17, radius: 25, targetYaw: .7, targetPitch: .17, targetRadius: 25, targetPoint: target.clone(), dragging: false, moved: false, x: 0, y: 0, pinch: 0 };
-    let cleanupStarted = null;
+    let cleanupProgress = 0;
     let previousCleanup = false;
     let lastStatsUpdate = 0;
+    let lastNavigationUpdate = 0;
     let hovered = null;
+    const pressedKeys = new Set();
+    const navigation = { x: 0, y: 0, z: 0, yaw: 0, velocity: 0, verticalVelocity: 0 };
 
     const setView = view => {
-      const presets = {
-        free: [.7, .17, 25, 0, .8, 0],
-        front: [-Math.PI / 2, .03, 20, -1.1, .8, 0],
-        side: [0, .04, 23, .3, .8, 0],
-        top: [.15, 1.24, 24, .2, .2, 0],
-        dome: [-1.72, .08, 7.2, -3.25, 1.55, 0],
-        engines: [1.38, .02, 8, 5.45, 1.1, 0]
-      };
-      const values = presets[view] || presets.free;
+      const values = CAMERA_POSES[view] || CAMERA_POSES.free;
       cameraState.targetYaw = values[0]; cameraState.targetPitch = values[1]; cameraState.targetRadius = values[2];
       cameraState.targetPoint.set(values[3], values[4], values[5]);
     };
-    apiRef.current = { setView };
-    propsRef.current.onReady?.({ setView });
+    const setStoryProgress = progress => {
+      if (propsRef.current.freeFlight) return;
+      const bounded = clamp(progress, 0, STORY_CHAPTERS.length - 1);
+      const index = Math.floor(bounded);
+      const nextIndex = Math.min(STORY_CHAPTERS.length - 1, index + 1);
+      const amount = bounded - index;
+      const smooth = amount * amount * (3 - 2 * amount);
+      const from = CAMERA_POSES[STORY_CHAPTERS[index].pose];
+      const to = CAMERA_POSES[STORY_CHAPTERS[nextIndex].pose];
+      cameraState.targetYaw = lerp(from[0], to[0], smooth);
+      cameraState.targetPitch = lerp(from[1], to[1], smooth);
+      cameraState.targetRadius = lerp(from[2], to[2], smooth);
+      cameraState.targetPoint.set(lerp(from[3], to[3], smooth), lerp(from[4], to[4], smooth), lerp(from[5], to[5], smooth));
+    };
+    apiRef.current = { setView, setStoryProgress };
+    propsRef.current.onReady?.({ setView, setStoryProgress });
 
     const projectPointer = event => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -510,8 +583,10 @@ function AbyssScene({ mode, cleanupActive, onStats, onTarget, onReady }) {
       }
     };
     const onWheel = event => {
-      event.preventDefault();
-      cameraState.targetRadius = clamp(cameraState.targetRadius + event.deltaY * .012, 4.6, 47);
+      if (propsRef.current.freeFlight && (event.altKey || event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        cameraState.targetRadius = clamp(cameraState.targetRadius + event.deltaY * .012, 4.6, 47);
+      }
     };
     const onTouchStart = event => {
       if (event.touches.length === 2) cameraState.pinch = Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY);
@@ -530,15 +605,44 @@ function AbyssScene({ mode, cleanupActive, onStats, onTarget, onReady }) {
     renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: true });
     renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: true });
 
+    const onKeyDown = event => {
+      const key = event.key.toLowerCase();
+      if (!propsRef.current.freeFlight || !['w', 'a', 's', 'd', ' ', 'shift'].includes(key)) return;
+      event.preventDefault();
+      pressedKeys.add(key);
+    };
+    const onKeyUp = event => pressedKeys.delete(event.key.toLowerCase());
+    const clearKeys = () => pressedKeys.clear();
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', clearKeys);
+
     const dummy = new THREE.Object3D();
     const clock = new THREE.Clock();
     let frame;
     const animate = () => {
       frame = requestAnimationFrame(animate);
-      const t = clock.getElapsedTime();
-      const delta = Math.min(clock.getDelta?.() || .016, .04);
+      const delta = Math.min(clock.getDelta(), .04);
+      const t = clock.elapsedTime;
       const currentMode = propsRef.current.mode;
       const isCleanup = propsRef.current.cleanupActive;
+      const isFreeFlight = propsRef.current.freeFlight;
+
+      if (isFreeFlight) {
+        const throttle = (pressedKeys.has('w') ? 1 : 0) - (pressedKeys.has('s') ? 1 : 0);
+        const steering = (pressedKeys.has('a') ? 1 : 0) - (pressedKeys.has('d') ? 1 : 0);
+        const vertical = (pressedKeys.has(' ') ? 1 : 0) - (pressedKeys.has('shift') ? 1 : 0);
+        navigation.yaw += steering * delta * 1.08;
+        navigation.velocity = lerp(navigation.velocity, throttle * 5.4, .055);
+        navigation.verticalVelocity = lerp(navigation.verticalVelocity, vertical * 2.8, .06);
+        navigation.x += -Math.cos(navigation.yaw) * navigation.velocity * delta;
+        navigation.z += Math.sin(navigation.yaw) * navigation.velocity * delta;
+        navigation.y = clamp(navigation.y + navigation.verticalVelocity * delta, -3.8, 8.5);
+        cameraState.targetPoint.set(navigation.x, navigation.y + .8, navigation.z);
+      } else {
+        navigation.velocity = lerp(navigation.velocity, 0, .08);
+        navigation.verticalVelocity = lerp(navigation.verticalVelocity, 0, .08);
+      }
 
       cameraState.yaw = lerp(cameraState.yaw, cameraState.targetYaw, .045);
       cameraState.pitch = lerp(cameraState.pitch, cameraState.targetPitch, .045);
@@ -552,9 +656,11 @@ function AbyssScene({ mode, cleanupActive, onStats, onTarget, onReady }) {
       );
       camera.lookAt(target);
 
-      sub.position.y = 1.2 + Math.sin(t * .42) * .09;
+      sub.position.x = navigation.x;
+      sub.position.y = 1.2 + navigation.y + Math.sin(t * .42) * .09;
+      sub.position.z = navigation.z;
       sub.rotation.z = Math.sin(t * .3) * .009;
-      sub.rotation.y = Math.sin(t * .2) * .012;
+      sub.rotation.y = navigation.yaw + Math.sin(t * .2) * .012;
       sub.userData.thrusters.children.forEach(child => { if (child.userData.spin) child.rotation.x += child.userData.spin * .055; });
       sub.userData.arms.rotation.z = Math.sin(t * .35) * .025;
 
@@ -619,10 +725,10 @@ function AbyssScene({ mode, cleanupActive, onStats, onTarget, onReady }) {
         if (mesh.material.emissive) mesh.material.emissiveIntensity = highlight ? 2.6 + Math.sin(t * 3 + i) * .7 : .32;
       });
 
-      if (isCleanup && !previousCleanup) cleanupStarted = t;
-      if (!isCleanup) cleanupStarted = null;
+      if (isCleanup && !previousCleanup && cleanupProgress >= .995) cleanupProgress = 0;
+      if (isCleanup) cleanupProgress = clamp(cleanupProgress + delta / 28);
       previousCleanup = isCleanup;
-      const progress = cleanupStarted === null ? 0 : clamp((t - cleanupStarted) / 17);
+      const progress = cleanupProgress;
       pollution.waste.forEach((mesh, i) => {
         const threshold = (i + 1) / pollution.waste.length;
         const local = clamp(progress * pollution.waste.length - i);
@@ -655,6 +761,16 @@ function AbyssScene({ mode, cleanupActive, onStats, onTarget, onReady }) {
         });
       }
 
+      if (t - lastNavigationUpdate > .15) {
+        lastNavigationUpdate = t;
+        const heading = ((navigation.yaw * 180 / Math.PI + 270) % 360 + 360) % 360;
+        propsRef.current.onNavigation?.({
+          speed: Math.abs(navigation.velocity * 1.28).toFixed(1),
+          heading: String(Math.round(heading)).padStart(3, '0'),
+          depth: Math.round(7842 - navigation.y * 10)
+        });
+      }
+
       const targetBg = currentMode === 'night' ? 0x01070c : currentMode === 'sonar' ? 0x001821 : currentMode === 'ai' ? 0x031524 : 0x031b22;
       const targetFog = currentMode === 'night' ? 0x021015 : currentMode === 'sonar' ? 0x00222b : currentMode === 'ai' ? 0x07182a : 0x052a31;
       scene.background.lerp(new THREE.Color(targetBg), .03);
@@ -684,6 +800,9 @@ function AbyssScene({ mode, cleanupActive, onStats, onTarget, onReady }) {
       renderer.domElement.removeEventListener('wheel', onWheel);
       renderer.domElement.removeEventListener('touchstart', onTouchStart);
       renderer.domElement.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', clearKeys);
       scene.traverse(object => {
         object.geometry?.dispose?.();
         if (Array.isArray(object.material)) object.material.forEach(material => material.dispose?.());
@@ -858,20 +977,214 @@ function CursorBeacon() {
   `;
 }
 
+function StoryExperience({ activeChapter, onChapterSelect }) {
+  return html`
+    <div className="story-scroll" aria-label="Guided submarine expedition">
+      ${STORY_CHAPTERS.map((chapter, index) => html`
+        <section id=${chapter.id} key=${chapter.id} className=${`story-chapter story-chapter--${chapter.align} ${activeChapter === index ? 'is-active' : ''}`} aria-label=${chapter.title}>
+          <div className="story-chapter__copy">
+            <div className="story-chapter__index"><span>${chapter.number}</span><i></i><b>${String(STORY_CHAPTERS.length).padStart(2, '0')}</b></div>
+            <p className="story-chapter__kicker">${chapter.kicker}</p>
+            <h1>${chapter.title}</h1>
+            <p className="story-chapter__body">${chapter.body}</p>
+            <dl className="story-facts">
+              ${chapter.facts.map(([label, value]) => html`<div key=${label}><dt>${label}</dt><dd>${value}</dd></div>`)}
+            </dl>
+            ${chapter.freeFlight && html`
+              <div className="pilot-keys" aria-label="Submarine movement controls">
+                <span></span><kbd>W</kbd><span></span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+              </div>
+            `}
+          </div>
+        </section>
+      `)}
+      <nav className="chapter-dots" aria-label="Expedition chapters">
+        ${STORY_CHAPTERS.map((chapter, index) => html`
+          <button key=${chapter.id} className=${activeChapter === index ? 'active' : ''} onClick=${() => onChapterSelect(index)} aria-label=${`Go to chapter ${index + 1}: ${chapter.title}`} aria-current=${activeChapter === index ? 'step' : undefined}>
+            <span>${chapter.number}</span><i></i>
+          </button>
+        `)}
+      </nav>
+    </div>
+  `;
+}
+
+function CleanupPanel({ active, stats, liveScan, onToggle }) {
+  return html`
+    <section className="mission-panel" aria-label="AI ocean cleanup telemetry">
+      <div className="mission-panel__top"><span><i></i>AI RESTORATION FEED</span><b>${active ? 'ACTIVE' : 'STANDBY'}</b></div>
+      <div className="mission-panel__body">
+        <div className="scan-ticker">
+          <span>${active ? `TRACKING ${liveScan.target}` : 'AWAITING DEPLOYMENT'}</span>
+          <b>${active ? `${liveScan.confidence}% CONF.` : 'READY'}</b>
+        </div>
+        <div className="mission-progress">
+          <span>MISSION ${String(stats.progress).padStart(2, '0')}% · VERIFIED RECOVERY MODEL</span>
+          <i><b style=${{ width: `${stats.progress}%` }}></b></i>
+        </div>
+        <dl>
+          <div><dt>DEBRIS RECOVERED</dt><dd>${stats.removed}<small>KG</small></dd></div>
+          <div><dt>FAUNA PROTECTED</dt><dd>${stats.protected}<small>EST.</small></dd></div>
+          <div><dt>WATER CLARITY</dt><dd>${stats.clarity}<small>%</small></dd></div>
+        </dl>
+        <div className="live-scan-row" aria-live="polite">
+          <span><i>FLOW</i><b>${liveScan.flow} M/S</b></span>
+          <span><i>DRONE</i><b>${liveScan.drone}</b></span>
+          <span><i>PARTICLES</i><b>${liveScan.particles}/L</b></span>
+        </div>
+        <button className=${active ? 'cleanup-button active' : 'cleanup-button'} onClick=${onToggle} aria-pressed=${active}>
+          <span className="cleanup-icon"><i></i><b></b></span>
+          <span><strong>${active ? stats.progress === 100 ? 'RESTORATION COMPLETE' : 'PAUSE AUTONOMOUS MISSION' : stats.progress > 0 ? 'RESUME CLEANUP MISSION' : 'INITIATE CLEANUP'}</strong><small>${active ? 'LIVE SENSOR VALUES UPDATING' : 'C · AI GUIDED RESTORATION'}</small></span>
+          <i className="cleanup-arrow">↗</i>
+        </button>
+      </div>
+    </section>
+  `;
+}
+
+function CockpitPanel({ mode, cleanupActive, stats, liveScan, onMode, onCleanup, onExit }) {
+  const buttons = [['SONAR', 'sonar'], ['LIGHTS', 'normal'], ['LOW', 'night'], ['AI', 'ai']];
+  return html`
+    <section className="cockpit-shell" aria-label="Interactive Nereid cockpit controls">
+      <div className="cockpit-frame" aria-hidden="true"><i></i><b></b><span></span></div>
+      <div className="cockpit-screen cockpit-screen--sonar">
+        <div className="screen-title"><span>SPATIAL SONAR</span><b>LIVE</b></div>
+        <div className="sonar-scope"><i></i><b></b><span></span><em></em></div>
+        <div className="screen-readout"><span>CONTACTS <b>096</b></span><span>RANGE <b>2.4 KM</b></span></div>
+      </div>
+      <div className="cockpit-screen cockpit-screen--systems">
+        <div className="screen-title"><span>VESSEL SYSTEMS</span><b>NOMINAL</b></div>
+        <div className="system-bars">
+          <span><i>HULL</i><b><em style=${{ width: '98%' }}></em></b><strong>98%</strong></span>
+          <span><i>POWER</i><b><em style=${{ width: '94%' }}></em></b><strong>94%</strong></span>
+          <span><i>O₂ LOOP</i><b><em style=${{ width: '100%' }}></em></b><strong>100%</strong></span>
+        </div>
+        <div className="screen-readout"><span>DEPTH <b>7,842 M</b></span><span>PRESS <b>78.4 MPA</b></span></div>
+      </div>
+      <div className="cockpit-console">
+        <div className="console-grip console-grip--left" aria-hidden="true"></div>
+        <div className="console-controls">
+          ${buttons.map(([label, id]) => html`
+            <button key=${id} className=${mode === id ? 'active' : ''} onClick=${() => onMode(id)} aria-pressed=${mode === id}><i><b></b></i><span>${label}</span></button>
+          `)}
+          <button className=${cleanupActive ? 'active is-amber' : 'is-amber'} onClick=${onCleanup} aria-pressed=${cleanupActive}><i><b></b></i><span>CLEAN</span></button>
+          <button onClick=${onExit}><i><b></b></i><span>EXIT</span></button>
+        </div>
+        <div className="console-center-screen">
+          <span>NEREID / FLIGHT COMPUTER</span>
+          <strong>${cleanupActive ? `RESTORE ${String(stats.progress).padStart(2, '0')}%` : 'HOLDING 7,842 M'}</strong>
+          <small>${cleanupActive ? `${liveScan.target} · ${liveScan.drone}` : 'AUTONOMOUS STATION KEEPING'}</small>
+        </div>
+        <div className="console-grip console-grip--right" aria-hidden="true"></div>
+      </div>
+    </section>
+  `;
+}
+
+function FreeFlightHUD({ navigation }) {
+  return html`
+    <aside className="free-flight-hud" aria-label="Free exploration controls">
+      <div className="free-flight-hud__status"><i></i><span>MANUAL CONTROL</span><b>ENGAGED</b></div>
+      <div className="flight-metrics">
+        <span><i>SPEED</i><b>${navigation.speed}</b><em>KN</em></span>
+        <span><i>HEADING</i><b>${navigation.heading}</b><em>°</em></span>
+        <span><i>DEPTH</i><b>${navigation.depth}</b><em>M</em></span>
+      </div>
+      <div className="flight-controls"><kbd>W</kbd><kbd>S</kbd><span>THRUST</span><kbd>A</kbd><kbd>D</kbd><span>STEER</span><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>DEPTH</span></div>
+      <p>Drag to orbit · Alt + scroll to zoom · Scroll up to revisit the expedition</p>
+    </aside>
+  `;
+}
+
+function AboutPage({ onBack }) {
+  return html`
+    <section className="about-page" aria-labelledby="about-title">
+      <div className="about-page__grid" aria-hidden="true"></div>
+      <div className="about-intro">
+        <p className="about-eyebrow"><i></i>PROJECT ABYSS / ORIGIN LOG</p>
+        <h1 id="about-title">The ocean’s future should feel worth protecting.</h1>
+        <p>Project ABYSS is a browser-based interactive documentary that combines deep-ocean exploration, speculative engineering, and environmental restoration in one continuous real-time world.</p>
+        <button onClick=${onBack}><span>ENTER THE EXPEDITION</span><i>↗</i></button>
+      </div>
+      <article className="creator-profile">
+        <div className="creator-profile__top"><span>CREATOR FILE</span><b>01 / 01</b></div>
+        <div className="creator-monogram">MAK<i></i></div>
+        <p className="creator-role">CREATOR · DESIGNER · DEVELOPER</p>
+        <h2>Mohammad Ali Khan</h2>
+        <p>Mohammad is a high school student from the Bay Area, California. He is creating Project ABYSS for a hackathon as an exploration of how technology, storytelling, and environmental responsibility can share the same world.</p>
+        <dl>
+          <div><dt>BASED IN</dt><dd>BAY AREA, CA</dd></div>
+          <div><dt>PROJECT TYPE</dt><dd>3D HACKATHON</dd></div>
+          <div><dt>MISSION</dt><dd>EXPLORE + RESTORE</dd></div>
+        </dl>
+      </article>
+      <div className="about-principles"><span>01 <b>IMMERSION</b></span><span>02 <b>ENGINEERING</b></span><span>03 <b>OCEAN STEWARDSHIP</b></span></div>
+    </section>
+  `;
+}
+
 function App() {
+  const routeFromPath = () => window.location.pathname.startsWith('/about') ? 'about' : 'experience';
+  const [route, setRoute] = useState(routeFromPath);
   const [mode, setMode] = useState('normal');
   const [view, setView] = useState('free');
   const [audio, setAudio] = useState(false);
   const [cleanupActive, setCleanupActive] = useState(false);
   const [target, setTarget] = useState(null);
-  const [intro, setIntro] = useState(true);
+  const [activeChapter, setActiveChapter] = useState(0);
+  const [storyProgress, setStoryProgress] = useState(0);
   const [stats, setStats] = useState({ progress: 0, health: 62, removed: '0.0', protected: 12, clarity: 71 });
+  const [navigation, setNavigation] = useState({ speed: '0.0', heading: '270', depth: 7842 });
+  const [liveScan, setLiveScan] = useState({ target: 'GHOST NET', confidence: '99.2', flow: '0.24', drone: 'NRD-01', particles: 284 });
   const sceneApi = useRef(null);
+  const progressRef = useRef(0);
+  const freeFlight = route === 'experience' && storyProgress > STORY_CHAPTERS.length - 1.12;
+  const cockpitVisible = route === 'experience' && !freeFlight && (view === 'cockpit' || activeChapter === 6);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => setIntro(false), 6200);
-    return () => window.clearTimeout(timeout);
+    const onPopState = () => setRoute(routeFromPath());
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle('is-about-route', route === 'about');
+    document.title = route === 'about' ? 'About Project ABYSS — Mohammad Ali Khan' : 'ABYSS — Interactive Deep Ocean Expedition';
+    if (route === 'about') {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      sceneApi.current?.setView('side');
+    } else {
+      requestAnimationFrame(() => sceneApi.current?.setStoryProgress(progressRef.current));
+    }
+    return () => document.body.classList.remove('is-about-route');
+  }, [route]);
+
+  useEffect(() => {
+    if (route !== 'experience') return undefined;
+    let ticking = false;
+    const update = () => {
+      ticking = false;
+      const progress = clamp(window.scrollY / Math.max(window.innerHeight, 1), 0, STORY_CHAPTERS.length - 1);
+      const chapter = Math.min(STORY_CHAPTERS.length - 1, Math.floor(progress + .5));
+      progressRef.current = progress;
+      setStoryProgress(progress);
+      setActiveChapter(chapter);
+      setView(current => current === STORY_CHAPTERS[chapter].view ? current : STORY_CHAPTERS[chapter].view);
+      sceneApi.current?.setStoryProgress(progress);
+    };
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    update();
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [route]);
 
   useEffect(() => {
     if (!audio) return undefined;
@@ -879,7 +1192,27 @@ function App() {
   }, [audio]);
 
   useEffect(() => {
+    if (!cleanupActive) return undefined;
+    let timer;
+    const targets = ['GHOST NET', 'POLYMER', 'MICROPLASTIC', 'METAL-04', 'RUBBER'];
+    const drones = ['NRD-01', 'NRD-02', 'NRD-03'];
+    const tick = () => {
+      setLiveScan({
+        target: targets[Math.floor(Math.random() * targets.length)],
+        confidence: (96.8 + Math.random() * 3.1).toFixed(1),
+        flow: (.16 + Math.random() * .23).toFixed(2),
+        drone: drones[Math.floor(Math.random() * drones.length)],
+        particles: Math.round(190 + Math.random() * 180)
+      });
+      timer = window.setTimeout(tick, 650 + Math.random() * 900);
+    };
+    tick();
+    return () => window.clearTimeout(timer);
+  }, [cleanupActive]);
+
+  useEffect(() => {
     const onKey = event => {
+      if (event.target?.matches?.('input, textarea, select')) return;
       if (event.key >= '1' && event.key <= '4') setMode(MODES[Number(event.key) - 1].id);
       if (event.key.toLowerCase() === 'c') setCleanupActive(value => !value);
       if (event.key.toLowerCase() === 'm') setAudio(value => !value);
@@ -888,12 +1221,27 @@ function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const navigate = (nextRoute, event) => {
+    event?.preventDefault?.();
+    const path = nextRoute === 'about' ? '/about' : '/';
+    if (window.location.pathname !== path) window.history.pushState({}, '', path);
+    setRoute(nextRoute);
+    if (nextRoute === 'experience') {
+      window.scrollTo({ top: 0, behavior: route === 'experience' ? 'smooth' : 'instant' });
+      progressRef.current = 0;
+      setStoryProgress(0);
+      setActiveChapter(0);
+    }
+  };
+
   const selectView = id => {
     setView(id);
     sceneApi.current?.setView(id);
     if (id === 'dome') setTarget({ category: 'sub', type: 'PANORAMIC OBSERVATORY', meta: 'PRESSURE-RESISTANT SMART GLASS', detail: 'External pressure 78.4 MPa · Optical clarity 99.7%' });
+    else setTarget(null);
   };
 
+  const selectChapter = index => window.scrollTo({ top: index * window.innerHeight, behavior: 'smooth' });
   const toggleCleanup = () => {
     setCleanupActive(active => !active);
     setMode('ai');
@@ -901,13 +1249,15 @@ function App() {
   };
 
   return html`
-    <main className=${`experience mode-${mode} ${cleanupActive ? 'cleanup-active' : ''}`}>
+    <main className=${`experience route-${route} mode-${mode} ${cleanupActive ? 'cleanup-active' : ''} ${cockpitVisible ? 'cockpit-visible' : ''} ${freeFlight ? 'free-flight' : ''}`} style=${{ '--story-progress': `${(storyProgress / (STORY_CHAPTERS.length - 1)) * 100}%` }}>
       <${AbyssScene}
         mode=${mode}
         cleanupActive=${cleanupActive}
+        freeFlight=${freeFlight}
         onStats=${setStats}
+        onNavigation=${setNavigation}
         onTarget=${setTarget}
-        onReady=${api => { sceneApi.current = api; }}
+        onReady=${api => { sceneApi.current = api; api.setStoryProgress(progressRef.current); }}
       />
 
       <div className="water-volume" aria-hidden="true"><i></i><b></b></div>
@@ -918,81 +1268,69 @@ function App() {
       <${CursorBeacon}/>
 
       <header className="mission-header">
-        <button className="brand" onClick=${() => selectView('free')} aria-label="Return to free orbit">
+        <a className="brand" href="/" onClick=${event => navigate('experience', event)} aria-label="Project ABYSS experience home">
           <span className="brand-mark"><i></i><b></b></span>
           <span className="brand-copy"><strong>ABYSS</strong><small>HADAL RESEARCH DIVISION</small></span>
-        </button>
-        <div className="mission-id"><span>EXPEDITION</span><b>NER–07</b><i></i><em>LIVE</em></div>
+        </a>
+        <nav className="main-nav" aria-label="Primary navigation">
+          <a href="/" className=${route === 'experience' ? 'active' : ''} onClick=${event => navigate('experience', event)} aria-current=${route === 'experience' ? 'page' : undefined}>Experience</a>
+          <a href="/about" className=${route === 'about' ? 'active' : ''} onClick=${event => navigate('about', event)} aria-current=${route === 'about' ? 'page' : undefined}>About</a>
+          <span><i style=${{ width: route === 'experience' ? '0%' : '100%' }}></i></span>
+        </nav>
         <div className="header-actions">
+          <span className="expedition-counter">${route === 'experience' ? `${String(activeChapter + 1).padStart(2, '0')} / ${String(STORY_CHAPTERS.length).padStart(2, '0')}` : 'ORIGIN / 01'}</span>
           <button className=${audio ? 'audio is-on' : 'audio'} onClick=${() => setAudio(value => !value)} aria-label=${audio ? 'Mute spatial audio' : 'Enable spatial audio'}>
             <span><i></i><i></i><i></i><i></i></span>${audio ? 'AUDIO ON' : 'AUDIO OFF'}
           </button>
           <span className="header-rule"></span>
-          <span className="depth-mini"><i>DEPTH</i><b>7,842</b><em>M</em></span>
+          <span className="depth-mini"><i>DEPTH</i><b>${navigation.depth.toLocaleString()}</b><em>M</em></span>
         </div>
+        <i className="header-progress"><b></b></i>
       </header>
 
-      <section className="telemetry" aria-label="Mission telemetry">
-        <div className="telemetry__eyebrow"><i></i>LIVE BATHYMETRY</div>
-        <div className="depth-readout"><span>−</span><strong>7,842</strong><em>M</em></div>
-        <div className="coordinate">11° 21' 4.2" N<br/>142° 11' 38.1" E</div>
-        <div className="pressure">
-          <span><i>PRESSURE</i><b>78.4 MPa</b></span>
-          <span><i>EXT. TEMP</i><b>1.7 °C</b></span>
-        </div>
-        <div className="ocean-state"><i style=${{ '--health': `${stats.health}%` }}></i><span>OCEAN INTEGRITY</span><b>${stats.health}%</b></div>
-      </section>
+      ${route === 'experience' ? html`
+        <${StoryExperience} activeChapter=${activeChapter} onChapterSelect=${selectChapter}/>
 
-      <nav className="view-rail" aria-label="Cinematic camera views">
-        <span className="rail-label">CAMERA</span>
-        ${VIEWS.map(item => html`
-          <button key=${item.id} className=${view === item.id ? 'active' : ''} onClick=${() => selectView(item.id)} aria-pressed=${view === item.id}>
-            <span>${item.key}</span><i></i><b>${item.label}</b>
-          </button>
-        `)}
-      </nav>
+        <section className="telemetry" aria-label="Mission telemetry">
+          <div className="telemetry__eyebrow"><i></i>LIVE BATHYMETRY</div>
+          <div className="depth-readout"><span>−</span><strong>${navigation.depth.toLocaleString()}</strong><em>M</em></div>
+          <div className="coordinate">11° 21' 4.2" N<br/>142° 11' 38.1" E</div>
+          <div className="pressure">
+            <span><i>PRESSURE</i><b>${(navigation.depth * .01).toFixed(1)} MPA</b></span>
+            <span><i>EXT. TEMP</i><b>1.7 °C</b></span>
+          </div>
+          <div className="ocean-state"><i style=${{ '--health': `${stats.health}%` }}></i><span>OCEAN INTEGRITY</span><b>${stats.health}%</b></div>
+        </section>
 
-      <section className="mode-dock" aria-label="Imaging systems">
-        <span className="dock-label">IMAGING SYSTEM</span>
-        <div className="mode-options">
-          ${MODES.map(item => html`
-            <button key=${item.id} className=${mode === item.id ? 'active' : ''} onClick=${() => setMode(item.id)} aria-pressed=${mode === item.id}>
-              <${ModeGlyph} mode=${item.id}/><span>${item.label}</span><kbd>${item.shortcut}</kbd>
+        <nav className="view-rail" aria-label="Cinematic camera views">
+          <span className="rail-label">CAMERA</span>
+          ${VIEWS.map(item => html`
+            <button key=${item.id} className=${view === item.id ? 'active' : ''} onClick=${() => selectView(item.id)} aria-pressed=${view === item.id}>
+              <span>${item.key}</span><i></i><b>${item.label}</b>
             </button>
           `)}
-        </div>
-      </section>
+        </nav>
 
-      <section className="mission-panel" aria-label="Ocean restoration mission">
-        <div className="mission-panel__top"><span><i></i>RESTORATION PROTOCOL</span><b>${cleanupActive ? 'ACTIVE' : 'STANDBY'}</b></div>
-        <div className="mission-panel__body">
-          <div className="mission-progress">
-            <span>MISSION ${String(stats.progress).padStart(2, '0')}%</span>
-            <i><b style=${{ width: `${stats.progress}%` }}></b></i>
+        <section className="mode-dock" aria-label="Imaging systems">
+          <span className="dock-label">IMAGING SYSTEM</span>
+          <div className="mode-options">
+            ${MODES.map(item => html`
+              <button key=${item.id} className=${mode === item.id ? 'active' : ''} onClick=${() => setMode(item.id)} aria-pressed=${mode === item.id}>
+                <${ModeGlyph} mode=${item.id}/><span>${item.label}</span><kbd>${item.shortcut}</kbd>
+              </button>
+            `)}
           </div>
-          <dl>
-            <div><dt>PLASTIC RECOVERED</dt><dd>${stats.removed}<small>KG</small></dd></div>
-            <div><dt>SPECIES PROTECTED</dt><dd>${stats.protected}<small>LIVE</small></dd></div>
-            <div><dt>WATER CLARITY</dt><dd>${stats.clarity}<small>%</small></dd></div>
-          </dl>
-          <button className=${cleanupActive ? 'cleanup-button active' : 'cleanup-button'} onClick=${toggleCleanup}>
-            <span className="cleanup-icon"><i></i><b></b></span>
-            <span><strong>${cleanupActive ? stats.progress === 100 ? 'RESTORATION COMPLETE' : 'DRONES DEPLOYED' : 'INITIATE CLEANUP'}</strong><small>${cleanupActive ? 'AUTONOMOUS COLLECTION IN PROGRESS' : 'C  ·  AI GUIDED RESTORATION'}</small></span>
-            <i className="cleanup-arrow">↗</i>
-          </button>
-        </div>
-      </section>
+        </section>
 
-      <${TargetCard} target=${target} onClose=${() => setTarget(null)}/>
-
-      <div className="interaction-hint" data-visible=${intro ? 'true' : 'false'}>
-        <span className="mouse"><i></i><b></b></span>
-        <p><strong>DRAG TO ORBIT</strong><small>SCROLL TO INSPECT · SELECT ANY CONTACT</small></p>
-      </div>
+        <${CleanupPanel} active=${cleanupActive} stats=${stats} liveScan=${liveScan} onToggle=${toggleCleanup}/>
+        ${cockpitVisible && html`<${CockpitPanel} mode=${mode} cleanupActive=${cleanupActive} stats=${stats} liveScan=${liveScan} onMode=${setMode} onCleanup=${toggleCleanup} onExit=${() => selectView('free')}/>`}
+        ${freeFlight && html`<${FreeFlightHUD} navigation=${navigation}/>`}
+        <${TargetCard} target=${target} onClose=${() => setTarget(null)}/>
+      ` : html`<${AboutPage} onBack=${event => navigate('experience', event)}/>`}
 
       <footer className="status-footer">
-        <span><i className="status-dot"></i>ALL SYSTEMS NOMINAL</span>
-        <span className="footer-center">AUS NEREID <i></i> AUTONOMOUS SUBMERSIBLE</span>
+        <span><i className="status-dot"></i>${freeFlight ? 'MANUAL NAVIGATION ACTIVE' : 'ALL SYSTEMS NOMINAL'}</span>
+        <span className="footer-center">AUS NEREID <i></i> ${route === 'about' ? 'PROJECT ORIGIN LOG' : 'AUTONOMOUS SUBMERSIBLE'}</span>
         <span>LOCAL TIME <b>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</b></span>
       </footer>
     </main>
