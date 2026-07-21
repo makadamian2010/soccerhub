@@ -714,6 +714,150 @@ function TargetCard({ target, onClose }) {
   `;
 }
 
+function CursorBeacon() {
+  const cursorRef = useRef(null);
+
+  useEffect(() => {
+    const root = cursorRef.current;
+    const finePointer = window.matchMedia('(pointer: fine)');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (!finePointer.matches) return undefined;
+
+    const core = root.querySelector('.cursor-beacon__core');
+    const halo = root.querySelector('.cursor-beacon__halo');
+    const wake = root.querySelector('.cursor-beacon__wake');
+    const state = {
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+      coreX: window.innerWidth / 2,
+      coreY: window.innerHeight / 2,
+      haloX: window.innerWidth / 2,
+      haloY: window.innerHeight / 2,
+      wakeX: window.innerWidth / 2,
+      wakeY: window.innerHeight / 2,
+      visible: false,
+      down: false,
+      magnetic: null,
+      frame: 0
+    };
+
+    document.documentElement.classList.add('custom-cursor-enabled');
+
+    const updateSurface = (x, y) => {
+      const element = document.elementFromPoint(x, y);
+      const control = element?.closest?.('button, a, [role="button"], [data-hotspot]');
+      const canvas = element?.closest?.('.abyss-scene canvas');
+      const hotspot = Boolean(canvas?.classList.contains('is-targeting'));
+      const darkInterface = Boolean(element?.closest?.('.mission-header, .mode-dock, .mission-panel, .target-card, .view-rail, .status-footer'));
+      const darkMode = Boolean(element?.closest?.('.mode-night, .mode-sonar'));
+
+      state.magnetic = control || null;
+      root.dataset.interactive = control || hotspot ? 'true' : 'false';
+      root.dataset.surface = control ? 'control' : hotspot ? 'hotspot' : canvas ? 'ocean' : 'interface';
+      root.dataset.zone = darkInterface || darkMode || y > window.innerHeight * .36 ? 'dark' : 'light';
+    };
+
+    const show = event => {
+      if (event.pointerType === 'touch') {
+        state.visible = false;
+        root.dataset.visible = 'false';
+        return;
+      }
+      state.visible = true;
+      state.x = event.clientX;
+      state.y = event.clientY;
+      root.dataset.visible = 'true';
+      updateSurface(event.clientX, event.clientY);
+    };
+
+    const createPulse = (x, y, interactive) => {
+      const pulse = document.createElement('span');
+      pulse.className = interactive ? 'cursor-sonar-pulse is-interactive' : 'cursor-sonar-pulse';
+      pulse.style.left = `${x}px`;
+      pulse.style.top = `${y}px`;
+      root.appendChild(pulse);
+      pulse.addEventListener('animationend', () => pulse.remove(), { once: true });
+    };
+
+    const onPointerDown = event => {
+      if (event.pointerType === 'touch') return;
+      show(event);
+      state.down = true;
+      root.dataset.down = 'true';
+      createPulse(event.clientX, event.clientY, root.dataset.interactive === 'true');
+    };
+
+    const onPointerUp = event => {
+      if (event.pointerType === 'touch') return;
+      state.down = false;
+      root.dataset.down = 'false';
+      show(event);
+    };
+
+    const onPointerLeave = event => {
+      if (event.relatedTarget) return;
+      state.visible = false;
+      root.dataset.visible = 'false';
+      state.magnetic = null;
+    };
+
+    const animate = () => {
+      let targetX = state.x;
+      let targetY = state.y;
+      if (state.magnetic?.isConnected) {
+        const rect = state.magnetic.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        targetX = state.x * .87 + centerX * .13;
+        targetY = state.y * .87 + centerY * .13;
+      }
+
+      const immediate = reducedMotion.matches;
+      state.coreX += (targetX - state.coreX) * (immediate ? 1 : .64);
+      state.coreY += (targetY - state.coreY) * (immediate ? 1 : .64);
+      state.haloX += (targetX - state.haloX) * (immediate ? 1 : .26);
+      state.haloY += (targetY - state.haloY) * (immediate ? 1 : .26);
+      state.wakeX += (targetX - state.wakeX) * (immediate ? 1 : .13);
+      state.wakeY += (targetY - state.wakeY) * (immediate ? 1 : .13);
+
+      const dx = targetX - state.wakeX;
+      const dy = targetY - state.wakeY;
+      const velocity = clamp(Math.hypot(dx, dy) / 28);
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      root.style.setProperty('--cursor-velocity', velocity.toFixed(3));
+      core.style.transform = `translate3d(${state.coreX}px, ${state.coreY}px, 0) translate(-50%, -50%)`;
+      halo.style.transform = `translate3d(${state.haloX}px, ${state.haloY}px, 0) translate(-50%, -50%)`;
+      wake.style.transform = `translate3d(${state.wakeX}px, ${state.wakeY}px, 0) translate(-50%, -50%) rotate(${angle}deg)`;
+      state.frame = requestAnimationFrame(animate);
+    };
+
+    window.addEventListener('pointermove', show, { passive: true, capture: true });
+    window.addEventListener('pointerdown', onPointerDown, { passive: true, capture: true });
+    window.addEventListener('pointerup', onPointerUp, { passive: true, capture: true });
+    window.addEventListener('pointercancel', onPointerUp, { passive: true, capture: true });
+    window.addEventListener('pointerout', onPointerLeave, { passive: true, capture: true });
+    state.frame = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(state.frame);
+      window.removeEventListener('pointermove', show, true);
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('pointerup', onPointerUp, true);
+      window.removeEventListener('pointercancel', onPointerUp, true);
+      window.removeEventListener('pointerout', onPointerLeave, true);
+      document.documentElement.classList.remove('custom-cursor-enabled');
+    };
+  }, []);
+
+  return html`
+    <div className="cursor-beacon" data-visible="false" data-interactive="false" data-down="false" data-zone="dark" aria-hidden="true" ref=${cursorRef}>
+      <span className="cursor-beacon__wake"><i></i></span>
+      <span className="cursor-beacon__halo"><i></i><b></b></span>
+      <span className="cursor-beacon__core"><i></i></span>
+    </div>
+  `;
+}
+
 function App() {
   const [mode, setMode] = useState('normal');
   const [view, setView] = useState('free');
@@ -771,6 +915,7 @@ function App() {
       <div className="film-grain" aria-hidden="true"></div>
       <div className="sonar-wash" aria-hidden="true"></div>
       <div className="reticle" aria-hidden="true"><i></i><b></b><span></span></div>
+      <${CursorBeacon}/>
 
       <header className="mission-header">
         <button className="brand" onClick=${() => selectView('free')} aria-label="Return to free orbit">
