@@ -4,7 +4,14 @@ const leagues = [
   { id: 'serie-a', name: 'Serie A', country: 'Italy', season: '2025-26' },
   { id: 'bundesliga', name: 'Bundesliga', country: 'Germany', season: '2025-26' },
   { id: 'ligue-1', name: 'Ligue 1', country: 'France', season: '2025-26' },
-  { id: 'champions-league', name: 'Champions League', country: 'Europe', season: '2025-26' }
+  { id: 'champions-league', name: 'Champions League', country: 'Europe', season: '2025-26' },
+  { id: 'europa-league', name: 'Europa League', country: 'Europe', season: '2025-26' },
+  { id: 'conference-league', name: 'Conference League', country: 'Europe', season: '2025-26' },
+  { id: 'club-world-cup', name: 'FIFA Club World Cup', country: 'International', season: '2026' },
+  { id: 'world-cup', name: 'FIFA World Cup', country: 'International', season: '2026' },
+  { id: 'world-cup-qualifying', name: 'World Cup Qualifying', country: 'International', season: '2026' },
+  { id: 'copa-libertadores', name: 'Copa Libertadores', country: 'South America', season: '2026' },
+  { id: 'copa-sudamericana', name: 'Copa Sudamericana', country: 'South America', season: '2026' }
 ];
 
 const teams = [

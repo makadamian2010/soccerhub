@@ -1,8 +1,8 @@
 {
-  "name": "project-abyss",
+  "name": "scorehub",
   "version": "1.0.0",
   "private": true,
-  "description": "ABYSS — an immersive interactive deep ocean expedition and restoration simulator",
+  "description": "ScoreHub — verified football scores, standings, player statistics, and match intelligence",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

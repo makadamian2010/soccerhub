@@ -1,6 +1,7 @@
 import { ArrowLeft, BarChart2, html } from '../lib/deps.js';
 import { Link, useSearchParams } from '../lib/deps.js';
 import { LoadingState } from '../components/LoadingState.js';
+import { PredictionPanel } from '../components/PredictionPanel.js';
 import { StatBar } from '../components/StatBar.js';
 import { createPageUrl } from '../lib/routes.js';
 import { formatLongDateTime, getInitials, getStatusLabel, isLiveLike } from '../lib/formatters.js';
@@ -84,6 +85,8 @@ export function MatchDetailsPage() {
           <span>${formatLongDateTime(match.match_date)}</span>
         </div>
       </div>
+
+      <${PredictionPanel} match=${match} />
 
       ${match.status !== 'scheduled' &&
       html`
