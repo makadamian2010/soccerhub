@@ -1,3 +1,0 @@
-import {NextResponse} from 'next/server';
-import {database} from '@/lib/server';
-export async function GET(req:Request){const id=new URL(req.url).searchParams.get('product');if(!id||!/^\d+$/.test(id))return NextResponse.json({error:'Invalid product.'},{status:400});try{const {data,error}=await database().from('variants').select('id,price,stock,reserved_stock,active').eq('product_id',id);if(error)throw error;return NextResponse.json({variants:data?.map(v=>({id:v.id,price:(v.price/100).toFixed(2),available:v.active&&v.stock-v.reserved_stock>0,maxQuantity:Math.max(0,Math.min(v.stock-v.reserved_stock,10))}))||[]},{headers:{'Cache-Control':'no-store'}})}catch{return NextResponse.json({variants:null},{headers:{'Cache-Control':'no-store'}})}}

@@ -1,9 +1,0 @@
-import Store from '@/components/store';
-import {getPublicCatalog} from '@/lib/public-catalog';
-import {products,collections,women} from '@/lib/catalog';
-import {notFound} from 'next/navigation';
-import type {Metadata} from 'next';
-type Props={params:Promise<{path?:string[]}>};
-const pages=['login','signup','forgot-password','reset-password','owner-setup','success','cancel','about','contact','shipping','returns','size-guide','faq','account','track-order','privacy','wishlist','checkout/success','payment-success','payment-cancelled'];
-export async function generateMetadata({params}:Props):Promise<Metadata>{const {path=[]}=await params;const {products}=path[0]==='products'?await getPublicCatalog():{products:[]};const p=path[0]==='products'?products.find(p=>p.handle===path[1]):null;const title=p?.title||(path[0]==='collections'?(women.find(w=>w[1]===path[1])?.[0]||collections.find(c=>c.handle===path[1])?.title||path[1]?.replaceAll('-',' ')):path.join(' ').replaceAll('-',' '));return {...(path[0]?.startsWith('payment-')?{robots:{index:false,follow:false},referrer:'no-referrer' as const}:{}),title:title?`${title} | Kashish Apparel`:'Kashish Apparel | Timeless Pakistani Elegance',description:p?`Explore ${p.title} at Kashish Apparel. View official product photography, available variants and pricing.`:'Discover designer Pakistani fashion, wedding formals, luxury lawn and menswear at Kashish Apparel.'}}
-export default async function Page({params}:Props){const {path=[]}=await params;const {products}=path[0]==='products'?await getPublicCatalog():{products:[]};if(path.length){const validProduct=path.length===2&&path[0]==='products'&&products.some(p=>p.handle===path[1]);const validCollection=path.length===2&&path[0]==='collections'&&['all','women','men','accessories','new-arrivals',...collections.map(c=>c.handle)].includes(path[1]);if(!validProduct&&!validCollection&&!pages.includes(path.join('/')))notFound()}return <Store/>}
