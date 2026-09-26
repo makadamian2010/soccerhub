@@ -1,9 +1,9 @@
 export async function fetchJson(url) {
   const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-  return response.json();
+  const type = response.headers.get('content-type') || '';
+  const body = type.includes('application/json') ? await response.json() : null;
+  if (!response.ok || !body) throw new Error(body?.error || 'No data available.');
+  return body;
 }
 
 export function getLeagues() {
