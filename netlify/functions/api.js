@@ -113,7 +113,7 @@ async function match(id) {
 }
 
 exports.handler = async (event) => {
-  const route = event.path.replace(/^\/.netlify\/functions\/api/, '') || '/';
+  const route = event.path.replace(/^\/(?:\.netlify\/functions\/api|api)/, '') || '/';
   const query = new URLSearchParams(event.rawQuery || '');
   try {
     if (route === '/dashboard') return response(200, await dashboard(query));
